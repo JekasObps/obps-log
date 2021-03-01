@@ -28,8 +28,8 @@ add_executable(log_test log_test.cpp)
 target_link_libraries(log_test PUBLIC obps_log)
 
 # target_link_libraries(test1 PUBLIC obps_log pthread)
-add_test(NAME log_queue_test
-        COMMAND log_queue_test )
+# add_test(NAME log_queue_test
+#         COMMAND log_queue_test )
 
 add_test(NAME log_test
         COMMAND log_test )
