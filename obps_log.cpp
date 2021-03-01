@@ -10,7 +10,11 @@ void ObpsLog::WriterFunction()
         m_Queue.ReadTo(
             [this](const char *msg, uint16_t size) {
                 m_Output->write(msg, size);
-                m_Output->flush();
+#ifdef AUTO_FLUSHING
+                m_Output->flush(); 
+#endif // AUTO_FLUSHING
+                //      providing user a freedom to decide whenever to do flush.
+                //      (user can also do so by sending std::flush)
                 if (m_Output->bad())
                 {
                     throw std::runtime_error("WriterThread:: IO Fail!");

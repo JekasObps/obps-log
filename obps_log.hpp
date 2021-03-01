@@ -57,6 +57,7 @@ public:
     void Log(LogLevel level, Args ...args);
     
     ~ObpsLog();
+    
     // FORMATTING--:
     using FormatSignature = void (
         std::ostream&       msg,

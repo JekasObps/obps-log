@@ -7,6 +7,7 @@ bool TestStdOut()
 {
     auto logger = Log::CreateLog(std::cerr, obps::LogLevel::WARN);
     logger->Log(obps::LogLevel::WARN, "[TestStdOut] Important Log Message");
+    return true;
 }
 
 bool TestNotOpened()
@@ -20,6 +21,7 @@ bool TestNotOpened()
         auto good_logger = Log::CreateLog(std::cout, obps::LogLevel::INFO);
         good_logger->Log(obps::LogLevel::INFO, "[TestNotOpened]::PASS");
     }
+    return true;
 }
 
 bool TestMultiple()
@@ -30,6 +32,7 @@ bool TestMultiple()
     logger->Attach(secondary);
 
     logger->Log(obps::LogLevel::WARN, "[TestMultiple] Writing Two Targets!");
+    return true;
 }
 
 bool TestSelfAttachment()
@@ -89,6 +92,7 @@ bool TestConcurrent()
     {
         t.join();
     }
+    return true;
 }
 
 int main()
