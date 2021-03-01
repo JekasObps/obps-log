@@ -1,0 +1,2 @@
+#define Logger_VERSION_MAJOR @Logger_VERSION_MAJOR@
+#define Logger_VERSION_MINOR @Logger_VERSION_MINOR@
