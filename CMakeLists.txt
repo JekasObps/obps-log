@@ -6,7 +6,7 @@ configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
 if (WIN32)
     add_definitions(-DWIN32)
-elseif(UNIX and NOT APPLE)
+elseif(UNIX AND NOT APPLE)
     add_definitions(-DLINUX)
 endif()
 
