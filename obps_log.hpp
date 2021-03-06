@@ -99,12 +99,13 @@ void ObpsLog::Log(LogLevel level, Args ...args)
     if (m_Level < level) { return; }
 
     std::string content;
-    std::stringstream args_stream;
-	(args_stream << ... << args);
-    std::getline(args_stream, content, '\0');
+    std::stringstream helper_stream;
+	(helper_stream << ... << args);
+    std::getline(helper_stream, content, '\0');
 
-    std::stringstream message_stream;
-    m_Format (message_stream, 
+    helper_stream.clear();
+
+    m_Format (helper_stream, 
         std::move(content), 
         "%F %T", 
         PrettyLevel(level), 
@@ -112,7 +113,7 @@ void ObpsLog::Log(LogLevel level, Args ...args)
         );
 
     std::string msg;
-    std::getline(message_stream, msg, '\0');
+    std::getline(helper_stream, msg, '\0');
     m_Queue.Write(msg.c_str(), msg.size());
 
     if (!m_AttachedLog.expired())

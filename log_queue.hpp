@@ -25,6 +25,7 @@ public:
     uint16_t ReadTo(std::function<void(const char *msg, uint16_t size)> f);
 
     void Write(const char *in, uint16_t size);
+    void Write(std::istream& in_stream, uint16_t size);
 
     bool isAlive() const { return !m_Terminate; }
     bool isOpen() const { return !m_Closed; }
@@ -52,6 +53,8 @@ public:
 
 private:
     void ReadDecorator(std::function<void(void)> read_impl);
+    void WriteDecorator(std::function<void(void)> write_impl);
+
     struct Message
     {
         uint16_t Size;
@@ -156,17 +159,18 @@ uint16_t LogQueue<msg_size, polling_micros>::ReadTo(std::function<void(const cha
 }
 
 template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::Write(const char *in, uint16_t size)
+void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)> write_impl)
 {
     while (true)
     {   
         while (!isWriteAvailable() || m_WriteFlag.test_and_set(std::memory_order_acquire))
+        {
             std::this_thread::sleep_for(std::chrono::microseconds(polling_micros)); // spin
+        }
     
         if (isWriteAvailable())
         {
-            std::memcpy(m_Writer->Buffer, in, size);
-            m_Writer->Size = size;
+            write_impl();
             break;
         }
         else
@@ -180,6 +184,27 @@ void LogQueue<msg_size, polling_micros>::Write(const char *in, uint16_t size)
     m_ReadCV.notify_one();
 
     m_WriteFlag.clear(std::memory_order_release);
+}
+
+template <size_t msg_size, size_t polling_micros>
+void LogQueue<msg_size, polling_micros>::Write(const char *in, uint16_t size)
+{
+    WriteDecorator([this, &in, &size](){
+        std::memcpy(m_Writer->Buffer, in, size);
+        m_Writer->Size = size;
+    });
+}
+
+template <size_t msg_size, size_t polling_micros>
+void LogQueue<msg_size, polling_micros>::Write(std::istream& in_stream, uint16_t size)
+{
+    WriteDecorator([this, &in_stream, &size](){
+        char buf[msg_size];
+        in_stream.read(buf, size);
+        
+        std::memcpy(m_Writer->Buffer, buf, size);
+        m_Writer->Size = size;
+    });
 }
 
 } // namespace obps
