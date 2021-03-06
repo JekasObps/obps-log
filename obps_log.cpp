@@ -9,6 +9,7 @@
 namespace obps
 {
 
+#ifdef LOG_ON
 void ObpsLog::WriterFunction()
 {
     while (m_Queue.isOpen() || m_Queue.isReadAvailable())
@@ -28,9 +29,11 @@ void ObpsLog::WriterFunction()
         });
     }
 }
+#endif // LOG_ON
 
 std::shared_ptr<ObpsLog> ObpsLog::CreateLog(const std::string& logname, LogLevel level)
 {
+#ifdef LOG_ON
     std::string filename = MakeLogFileName(logname);
     auto file = std::make_unique<std::ofstream>(filename, std::ofstream::app);
     if (file->fail())
@@ -41,17 +44,25 @@ std::shared_ptr<ObpsLog> ObpsLog::CreateLog(const std::string& logname, LogLevel
     return std::shared_ptr<ObpsLog>(
         new ObpsLog(std::move(file), level)
     );
+#else 
+    return nullptr;
+#endif // LOG_ON
 }
 
 std::shared_ptr<ObpsLog> ObpsLog::CreateLog(std::ostream& out, LogLevel level)
 {
+#ifdef LOG_ON
     return std::shared_ptr<ObpsLog>(
         new ObpsLog(std::make_unique<std::ostream>(out.rdbuf()), level)
     );
+#else
+    return nullptr;
+#endif // LOG_ON
 }
 
 void ObpsLog::Attach(std::shared_ptr<ObpsLog> other_log)
 {
+#ifdef LOG_ON
     if (!(other_log->m_AttachedLog).expired() &&
         &*other_log->m_AttachedLog.lock() == this) 
     {
@@ -64,6 +75,7 @@ void ObpsLog::Attach(std::shared_ptr<ObpsLog> other_log)
     }
 
     m_AttachedLog = other_log;
+#endif // LOG_ON
 }
 
 std::string ObpsLog::GetTimeStr(const std::string& fmt)
@@ -137,6 +149,5 @@ void ObpsLog::JSON_format(
         << " : " << std::quoted(content) << std::endl 
         << "},"  << std::endl;
 };
-
 
 } // namespace obps
