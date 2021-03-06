@@ -1,5 +1,5 @@
 *
-ObpsLogCongif.hpp
+ObpsLogConfig.hpp
 
 !*.cpp
 !*.hpp
