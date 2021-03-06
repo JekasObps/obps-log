@@ -1,9 +1,9 @@
 #include "obps_log.hpp"
 
-#ifdef WIN_32
-#    define __localtime (x, y) localtime_s(x, y)
-#else
-#    define __localtime (x, y) localtime_r(y, x)
+#if defined(WIN32)
+#    define __localtime(x, y) localtime_s( x, y )
+#elif defined(LINUX)
+#    define __localtime(x, y) localtime_r( y, x )
 #endif
 
 namespace obps
@@ -73,7 +73,7 @@ std::string ObpsLog::GetTimeStr(const std::string& fmt)
     tm date_info;
 
 
-    __localtime(&date_infom &t_c);
+    __localtime(&date_info, &t_c);
 
     // localtime_r(&t_c, &date_info);
     

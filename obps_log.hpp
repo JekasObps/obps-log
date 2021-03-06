@@ -9,18 +9,6 @@
 #include "ObpsLogConfig.hpp"
 #include "log_queue.hpp"
 
-#ifndef DEFAULT_QUEUE_SIZE
-#   define DEFAULT_QUEUE_SIZE 16
-#endif
-
-#ifndef MAX_MSG_SIZE
-#   define MAX_MSG_SIZE 256
-#endif
-
-#ifndef POLLING_MICROS_DELAY
-#   define POLLING_MICROS_DELAY 500
-#endif
-
 namespace obps
 {
 
