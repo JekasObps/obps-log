@@ -14,7 +14,7 @@ bool TestNotOpened()
 {
     try 
     {
-        auto bad_logger = Log::CreateLog("|", obps::LogLevel::WARN);
+        auto bad_logger = Log::CreateLog("//", obps::LogLevel::WARN);
     }
     catch ( std::runtime_error& e)
     {

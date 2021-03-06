@@ -111,7 +111,8 @@ void ObpsLog::Log(LogLevel level, Args ...args)
     if (m_Level < level) { return; }
 
     std::string content;
-    std::stringstream args_stream((std::stringstream() << ... << args));
+    std::stringstream args_stream;
+	(args_stream << ... << args);
     std::getline(args_stream, content, '\0');
 
     std::stringstream message_stream;

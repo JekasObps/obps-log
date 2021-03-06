@@ -1,3 +1,2 @@
-#define ObpsLog_VERSION_MAJOR 0
-#define ObpsLog_VERSION_MINOR 2
-#define LOG_ON
+#define Logger_VERSION_MAJOR 
+#define Logger_VERSION_MINOR 

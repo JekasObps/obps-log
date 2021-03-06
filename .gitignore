@@ -1,2 +1,8 @@
-.vscode
-build
+*
+
+
+!*.cpp
+!*.hpp
+!.gitignore
+!*.in
+!CMakeLists.txt

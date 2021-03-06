@@ -1,5 +1,11 @@
 #include "obps_log.hpp"
 
+#ifdef WIN_32
+#    define __localtime (x, y) localtime_s(x, y)
+#else
+#    define __localtime (x, y) localtime_r(y, x)
+#endif
+
 namespace obps
 {
 
@@ -66,7 +72,10 @@ std::string ObpsLog::GetTimeStr(const std::string& fmt)
     const std::time_t t_c = std::chrono::system_clock::to_time_t(date);
     tm date_info;
 
-    localtime_s(&date_info, &t_c);
+
+    __localtime(&date_infom &t_c);
+
+    // localtime_r(&t_c, &date_info);
     
     char timestr_buffer[128];
     strftime(timestr_buffer, 128, fmt.c_str(), &date_info);

@@ -4,6 +4,8 @@ project(ObpsLog VERSION 0.2)
 
 configure_file(ObpsLogConfig.hpp.in ObpsLogConfig.hpp)
 
+add_definitions(-DLOG_ON)
+
 add_library(obps_log STATIC obps_log.cpp)
 
 set_target_properties( obps_log PROPERTIES
@@ -14,6 +16,9 @@ target_include_directories( obps_log
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
+target_link_libraries(obps_log
+	PUBLIC pthread)
+
 ###############################       TEST        ##############################
 
 enable_testing(True)
@@ -23,7 +28,7 @@ enable_testing(True)
 # add_test(NAME test_circular_queue
 #          COMMAND test_circular_queue )
 
-add_executable(log_queue_test log_queue_test.cpp)
+# add_executable(log_queue_test log_queue_test.cpp)
 add_executable(log_test log_test.cpp)
 target_link_libraries(log_test PUBLIC obps_log)
 
