@@ -8,6 +8,7 @@ if (WIN32)
     add_definitions(-DWIN32)
 elseif(UNIX AND NOT APPLE)
     add_definitions(-DLINUX)
+    set(LINUX True)	
 endif()
 
 add_library(obps_log STATIC obps_log.cpp)
