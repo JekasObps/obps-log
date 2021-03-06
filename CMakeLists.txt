@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.5)
 
 project(ObpsLog VERSION 0.2)
 
 configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
-add_definitions(-DLOG_ON)
 if (WIN32)
     add_definitions(-DWIN32)
 elseif(UNIX and NOT APPLE)
