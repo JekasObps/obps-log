@@ -1,8 +1,9 @@
 *
-ObpsLogConfig.hpp
 
 !*.cpp
 !*.hpp
 !.gitignore
 !*.in
 !CMakeLists.txt
+
+ObpsLogConfig.hpp
