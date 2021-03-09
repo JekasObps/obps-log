@@ -106,12 +106,8 @@ void Log::Write(LogLevel level, Args ...args)
 
     helper_stream.clear();
 
-    m_Format (helper_stream, 
-        std::move(content), 
-        "%F %T", 
-        PrettyLevel(level), 
-        std::this_thread::get_id()
-        );
+    m_Format(helper_stream, 
+        {std::move(content), "%F %T", PrettyLevel(level), std::this_thread::get_id()});
 
     std::string msg;
     std::getline(helper_stream, msg, '\0');
