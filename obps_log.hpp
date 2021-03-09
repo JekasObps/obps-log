@@ -47,14 +47,15 @@ public:
     ~Log();
     
     // FORMATTING--:
-    using FormatSignature = void (
-        std::ostream&       msg,
-        const std::string&  content,
-        const std::string&  date_fmt,
-        const std::string&  pretty_level,
-        std::thread::id     tid
-    );
+    struct MessageData
+    {
+        const std::string&  Content;
+        const std::string&  DateFmt;
+        const std::string&  PrettyLevel;
+        std::thread::id     Tid;
+    };
 
+    using FormatSignature = void (std::ostream&, MessageData);
     using Formatter = std::function<FormatSignature>;
 
     static FormatSignature default_format;

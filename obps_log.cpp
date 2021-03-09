@@ -115,35 +115,25 @@ Log::~Log()
 #endif // LOG_ON
 }
 
-void Log::default_format(
-        std::ostream&       msg,
-        const std::string&  content,
-        const std::string&  date_fmt,
-        const std::string&  pretty_level,
-        std::thread::id     tid
-    )
+void Log::default_format(std::ostream& msg_out, MessageData mdata)
 {
-    msg << GetTimeStr("%F %T [") << tid << "] " << pretty_level << " " << content 
-        << std::endl;
+    msg_out << GetTimeStr("%F %T [") 
+            << mdata.Tid << "] "
+            << mdata.PrettyLevel << " " << mdata.Content 
+            << std::endl;
 };
 
-void Log::JSON_format(
-        std::ostream&       msg,
-        const std::string&  content,
-        const std::string&  date_fmt,
-        const std::string&  pretty_level,
-        std::thread::id     tid
-    )
+void Log::JSON_format(std::ostream& msg_out, MessageData mdata)
 {
-    msg << "{"   << std::endl << std::left
+    msg_out << "{"   << std::endl << std::left
         << "  "  << std::setw(10) << std::quoted("level") 
-        << " : " << std::quoted(pretty_level) << "," << std::endl
+        << " : " << std::quoted(mdata.PrettyLevel) << "," << std::endl
         << "  "  << std::setw(10) << std::quoted("date")
-        << " : " << std::quoted(GetTimeStr(date_fmt)) << "," << std::endl
+        << " : " << std::quoted(GetTimeStr(mdata.DateFmt)) << "," << std::endl
         << "  "  << std::setw(10) << std::quoted("tid")
-        << " : " << tid << "," << std::endl
+        << " : " << mdata.Tid << "," << std::endl
         << "  "  << std::setw(10) << std::quoted("message") 
-        << " : " << std::quoted(content) << std::endl 
+        << " : " << std::quoted(mdata.Content) << std::endl 
         << "},"  << std::endl;
 };
 
