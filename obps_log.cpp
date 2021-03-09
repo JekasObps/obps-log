@@ -10,7 +10,7 @@ namespace obps
 {
 
 #ifdef LOG_ON
-void ObpsLog::WriterFunction()
+void Log::WriterFunction()
 {
     while (m_Queue.isOpen() || m_Queue.isReadAvailable())
     {
@@ -31,7 +31,7 @@ void ObpsLog::WriterFunction()
 }
 #endif // LOG_ON
 
-std::shared_ptr<ObpsLog> ObpsLog::CreateLog(const std::string& logname, LogLevel level)
+std::shared_ptr<Log> Log::Create(const std::string& logname, LogLevel level)
 {
 #ifdef LOG_ON
     std::string filename = MakeLogFileName(logname);
@@ -41,53 +41,50 @@ std::shared_ptr<ObpsLog> ObpsLog::CreateLog(const std::string& logname, LogLevel
         throw std::runtime_error("Failed To Open File!");
     }
 
-    return std::shared_ptr<ObpsLog>(
-        new ObpsLog(std::move(file), level)
+    return std::shared_ptr<Log>(
+        new Log(std::move(file), level)
     );
 #else 
     return nullptr;
 #endif // LOG_ON
 }
 
-std::shared_ptr<ObpsLog> ObpsLog::CreateLog(std::ostream& out, LogLevel level)
+std::shared_ptr<Log> Log::Create(std::ostream& out, LogLevel level)
 {
 #ifdef LOG_ON
-    return std::shared_ptr<ObpsLog>(
-        new ObpsLog(std::make_unique<std::ostream>(out.rdbuf()), level)
+    return std::shared_ptr<Log>(
+        new Log(std::make_unique<std::ostream>(out.rdbuf()), level)
     );
 #else
     return nullptr;
 #endif // LOG_ON
 }
 
-void ObpsLog::Attach(std::shared_ptr<ObpsLog> other_log)
+void Log::Attach(std::shared_ptr<Log> other_log)
 {
 #ifdef LOG_ON
     if (!(other_log->m_AttachedLog).expired() &&
         &*other_log->m_AttachedLog.lock() == this) 
     {
-        throw std::logic_error("ObpsLog::Cyclic Attachment is prohibited!");
+        throw std::logic_error("Log::Cyclic Attachment is prohibited!");
     }
 
     if (&*other_log == this)
     {
-        throw std::logic_error("ObpsLog::Self Attachment is prohibited!");
+        throw std::logic_error("Log::Self Attachment is prohibited!");
     }
 
     m_AttachedLog = other_log;
 #endif // LOG_ON
 }
 
-std::string ObpsLog::GetTimeStr(const std::string& fmt)
+std::string Log::GetTimeStr(const std::string& fmt)
 {
     const auto date = std::chrono::system_clock::now();
     const std::time_t t_c = std::chrono::system_clock::to_time_t(date);
     tm date_info;
 
-
     __localtime(&date_info, &t_c);
-
-    // localtime_r(&t_c, &date_info);
     
     char timestr_buffer[128];
     strftime(timestr_buffer, 128, fmt.c_str(), &date_info);
@@ -95,22 +92,22 @@ std::string ObpsLog::GetTimeStr(const std::string& fmt)
     return timestr_buffer;
 }
 
-std::string ObpsLog::MakeLogFileName(const std::string& prefix_name)
+std::string Log::MakeLogFileName(const std::string& prefix_name)
 {
     return prefix_name + "-" + GetTimeStr("%F") + ".log";
 }
 
-ObpsLog::ObpsLog(std::unique_ptr<std::ostream> stream, LogLevel level, size_t queue_size, Formatter format)
+Log::Log(std::unique_ptr<std::ostream> stream, LogLevel level, size_t queue_size, Formatter format)
 #ifdef LOG_ON
   : m_Output(std::move(stream))
   , m_Level(level)
   , m_Queue(queue_size)
-  , m_LogWriter(&ObpsLog::WriterFunction, this)
+  , m_LogWriter(&Log::WriterFunction, this)
   , m_Format(format)
 #endif // LOG_ON
 {}
 
-ObpsLog::~ObpsLog()
+Log::~Log()
 {
 #ifdef LOG_ON
     m_Queue.Close();
@@ -118,7 +115,7 @@ ObpsLog::~ObpsLog()
 #endif // LOG_ON
 }
 
-void ObpsLog::default_format(
+void Log::default_format(
         std::ostream&       msg,
         const std::string&  content,
         const std::string&  date_fmt,
@@ -130,7 +127,7 @@ void ObpsLog::default_format(
         << std::endl;
 };
 
-void ObpsLog::JSON_format(
+void Log::JSON_format(
         std::ostream&       msg,
         const std::string&  content,
         const std::string&  date_fmt,

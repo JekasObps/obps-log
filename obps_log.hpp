@@ -12,7 +12,7 @@
 namespace obps
 {
 
-enum class LogLevel 
+enum class LogLevel
 { 
     ERROR,
     WARN,
@@ -33,18 +33,18 @@ constexpr auto PrettyLevel(const LogLevel level)
     }
 }
 
-class ObpsLog
+class Log
 {
 public:
-    static std::shared_ptr<ObpsLog> CreateLog(const std::string& logname, LogLevel level);
-    static std::shared_ptr<ObpsLog> CreateLog(std::ostream& out, LogLevel level);
+    static std::shared_ptr<Log> Create(const std::string& logname, LogLevel level);
+    static std::shared_ptr<Log> Create(std::ostream& out, LogLevel level);
     
-    void Attach(std::shared_ptr<ObpsLog> other_log);
+    void Attach(std::shared_ptr<Log> other_log);
 
     template <typename ...Args>
-    void Log(LogLevel level, Args ...args);
+    void Write(LogLevel level, Args ...args);
     
-    ~ObpsLog();
+    ~Log();
     
     // FORMATTING--:
     using FormatSignature = void (
@@ -63,13 +63,13 @@ public:
     // :--FORMATTING //
     static std::string GetTimeStr(const std::string& fmt);
 
-    ObpsLog(const ObpsLog&) = delete;
-    ObpsLog(ObpsLog&&) = delete;
-    ObpsLog& operator=(const ObpsLog&) = delete;
-    ObpsLog& operator=(ObpsLog&&) = delete;
+    Log(const Log&) = delete;
+    Log(Log&&) = delete;
+    Log& operator=(const Log&) = delete;
+    Log& operator=(Log&&) = delete;
 
 private:
-    explicit ObpsLog(
+    explicit Log(
         std::unique_ptr<std::ostream> stream, 
         LogLevel level = LogLevel::WARN, 
         size_t queue_size = DEFAULT_QUEUE_SIZE,
@@ -87,13 +87,13 @@ private:
     std::thread m_LogWriter;
     Formatter m_Format;
 
-    std::weak_ptr<ObpsLog> m_AttachedLog;
+    std::weak_ptr<Log> m_AttachedLog;
 
 #endif // LOG_ON
 };
 
 template <typename ...Args>
-void ObpsLog::Log(LogLevel level, Args ...args)
+void Log::Write(LogLevel level, Args ...args)
 {
 #ifdef LOG_ON
     if (m_Level < level) { return; }
