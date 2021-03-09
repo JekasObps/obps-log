@@ -95,6 +95,26 @@ bool TestConcurrent()
     return true;
 }
 
+bool TestSorting()
+{
+    auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
+    auto logB = Log::Create("logB", obps::LogLevel::INFO);
+    auto logC = Log::Create("logC", obps::LogLevel::WARN);
+    auto logD = Log::Create("logD", obps::LogLevel::ERROR);
+
+    logA
+    -> Attach(logB)
+    -> Attach(logC)
+    -> Attach(logD);
+
+    logA->Write(obps::LogLevel::DEBUG, "MESSAGE 1\n");
+    logA->Write(obps::LogLevel::INFO,  "MESSAGE 2\n");
+    logA->Write(obps::LogLevel::WARN,  "MESSAGE 3\n");
+    logA->Write(obps::LogLevel::ERROR, "MESSAGE 4\n");
+
+    return true;
+}
+
 int main()
 {
     TestStdOut();
@@ -103,4 +123,5 @@ int main()
     TestSelfAttachment();
     TestCyclicAttachment();
     TestConcurrent();
+    TestSorting();
 }

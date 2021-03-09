@@ -12,6 +12,8 @@
 namespace obps
 {
 
+using namespace std::chrono_literals;
+
 enum class LogLevel
 { 
     ERROR,
@@ -39,7 +41,8 @@ public:
     static std::shared_ptr<Log> Create(const std::string& logname, LogLevel level);
     static std::shared_ptr<Log> Create(std::ostream& out, LogLevel level);
     
-    void Attach(std::shared_ptr<Log> other_log);
+    std::shared_ptr<Log> Attach(std::shared_ptr<Log> other_log);
+    bool HasAttachedLog() const;
 
     template <typename ...Args>
     void Write(LogLevel level, Args ...args);
@@ -77,6 +80,19 @@ private:
         Formatter formatter = default_format
     );
     
+    // bool CheckNeedInMessageComposing(LogLevel level) const;
+    bool IsRelevantLevel(LogLevel level) const;
+
+    template <typename ...Args>
+    void WriteForward(LogLevel level, Args ...args);
+
+    void WriteForward(LogLevel level, const std::string& message);
+    
+    void SendToQueue(const std::string& message);
+    
+    template <typename ...Args>
+    std::string BuildMessage(LogLevel level, Args ...args);
+
     static std::string MakeLogFileName(const std::string& prefix_name);
 
     void WriterFunction();
@@ -97,10 +113,34 @@ template <typename ...Args>
 void Log::Write(LogLevel level, Args ...args)
 {
 #ifdef LOG_ON
-    if (m_Level < level) { return; }
+    WriteForward(level, args...);
+#endif // LOG_ON
+}
 
-    std::string content;
+template <typename ...Args>
+void Log::WriteForward(LogLevel level, Args ...args)
+{
+    if (IsRelevantLevel(level))
+    {
+        std::string message = BuildMessage(level, args...);
+        SendToQueue(message);
+
+        if (HasAttachedLog())
+            m_AttachedLog.lock()->WriteForward(level, message);
+
+        return;
+    }
+
+    if (HasAttachedLog())
+        m_AttachedLog.lock()->WriteForward(level, args...);
+}
+
+template <typename ...Args>
+std::string Log::BuildMessage(LogLevel level, Args ...args)
+{
     std::stringstream helper_stream;
+    std::string content, message;
+
 	(helper_stream << ... << args);
     std::getline(helper_stream, content, '\0');
 
@@ -109,16 +149,10 @@ void Log::Write(LogLevel level, Args ...args)
     m_Format(helper_stream, 
         {std::move(content), "%F %T", PrettyLevel(level), std::this_thread::get_id()});
 
-    std::string msg;
-    std::getline(helper_stream, msg, '\0');
-    m_Queue.Write(msg.c_str(), msg.size());
-
-    if (!m_AttachedLog.expired())
-    {
-        m_AttachedLog.lock()->m_Queue.Write(msg.c_str(), msg.size());
-    }
-
-#endif // LOG_ON
+    std::getline(helper_stream, message, '\0');
+    return message;
 }
+
+
 
 } // namespace obps

@@ -20,8 +20,6 @@ void Log::WriterFunction()
 #ifdef AUTO_FLUSHING
                 m_Output->flush(); 
 #endif // AUTO_FLUSHING
-                //      providing user a freedom to decide whenever to do flush.
-                //      (user can also do so by sending std::flush)
                 if (m_Output->bad())
                 {
                     throw std::runtime_error("WriterThread:: IO Fail!");
@@ -60,10 +58,10 @@ std::shared_ptr<Log> Log::Create(std::ostream& out, LogLevel level)
 #endif // LOG_ON
 }
 
-void Log::Attach(std::shared_ptr<Log> other_log)
+std::shared_ptr<Log> Log::Attach(std::shared_ptr<Log> other_log)
 {
 #ifdef LOG_ON
-    if (!(other_log->m_AttachedLog).expired() &&
+    if (other_log->HasAttachedLog() &&
         &*other_log->m_AttachedLog.lock() == this) 
     {
         throw std::logic_error("Log::Cyclic Attachment is prohibited!");
@@ -76,6 +74,44 @@ void Log::Attach(std::shared_ptr<Log> other_log)
 
     m_AttachedLog = other_log;
 #endif // LOG_ON
+    return other_log;
+}
+
+bool Log::HasAttachedLog() const 
+{
+    return !m_AttachedLog.expired();
+}
+
+// bool Log::CheckNeedInMessageComposing(LogLevel level) const
+// {
+//     if (IsRelevantLevel(level))
+//         return true;
+
+//     if (HasAttachedLog())
+//         return m_AttachedLog.lock()->CheckNeedInMessageComposing(level);
+// }
+
+bool Log::IsRelevantLevel(LogLevel level) const
+{
+    return m_Level >= level;
+}
+
+void Log::WriteForward(LogLevel level, const std::string& message)
+{
+    if (IsRelevantLevel(level))
+    {
+        SendToQueue(message);
+    }
+
+    if(HasAttachedLog())
+    {
+        m_AttachedLog.lock()->WriteForward(level, message);
+    }
+}
+
+void Log::SendToQueue(const std::string& message)
+{
+    m_Queue.Write(message.c_str(), message.size());
 }
 
 std::string Log::GetTimeStr(const std::string& fmt)
@@ -97,7 +133,8 @@ std::string Log::MakeLogFileName(const std::string& prefix_name)
     return prefix_name + "-" + GetTimeStr("%F") + ".log";
 }
 
-Log::Log(std::unique_ptr<std::ostream> stream, LogLevel level, size_t queue_size, Formatter format)
+Log::Log(std::unique_ptr<std::ostream> stream, LogLevel level, 
+        size_t queue_size, Formatter format)
 #ifdef LOG_ON
   : m_Output(std::move(stream))
   , m_Level(level)
@@ -112,6 +149,7 @@ Log::~Log()
 #ifdef LOG_ON
     m_Queue.Close();
     m_LogWriter.join();
+    m_Output->flush();
 #endif // LOG_ON
 }
 
