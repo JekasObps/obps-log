@@ -35,7 +35,7 @@ constexpr auto PrettyLevel(const LogLevel level)
     }
 }
 
-class Log
+class Log final
 {
 public:
     static std::shared_ptr<Log> Create(const std::string& logname, LogLevel level);
@@ -89,7 +89,7 @@ private:
     void WriteForward(LogLevel level, const std::string& message);
     
     void SendToQueue(const std::string& message);
-    
+
     template <typename ...Args>
     std::string BuildMessage(LogLevel level, Args ...args);
 
@@ -146,13 +146,11 @@ std::string Log::BuildMessage(LogLevel level, Args ...args)
 
     helper_stream.clear();
 
-    m_Format(helper_stream, 
-        {std::move(content), "%F %T", PrettyLevel(level), std::this_thread::get_id()});
+    m_Format(helper_stream, { std::move(content), "%F %T", 
+                              PrettyLevel(level), std::this_thread::get_id() });
 
     std::getline(helper_stream, message, '\0');
     return message;
 }
-
-
 
 } // namespace obps

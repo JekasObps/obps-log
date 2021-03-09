@@ -9,26 +9,6 @@
 namespace obps
 {
 
-#ifdef LOG_ON
-void Log::WriterFunction()
-{
-    while (m_Queue.isOpen() || m_Queue.isReadAvailable())
-    {
-        m_Queue.ReadTo(
-            [this](const char *msg, uint16_t size) {
-                m_Output->write(msg, size);
-#ifdef AUTO_FLUSHING
-                m_Output->flush(); 
-#endif // AUTO_FLUSHING
-                if (m_Output->bad())
-                {
-                    throw std::runtime_error("WriterThread:: IO Fail!");
-                }
-        });
-    }
-}
-#endif // LOG_ON
-
 std::shared_ptr<Log> Log::Create(const std::string& logname, LogLevel level)
 {
 #ifdef LOG_ON
@@ -77,6 +57,7 @@ std::shared_ptr<Log> Log::Attach(std::shared_ptr<Log> other_log)
     return other_log;
 }
 
+#ifdef LOG_ON
 bool Log::HasAttachedLog() const 
 {
     return !m_AttachedLog.expired();
@@ -113,6 +94,25 @@ void Log::SendToQueue(const std::string& message)
 {
     m_Queue.Write(message.c_str(), message.size());
 }
+
+void Log::WriterFunction()
+{
+    while (m_Queue.isOpen() || m_Queue.isReadAvailable())
+    {
+        m_Queue.ReadTo(
+            [this](const char *msg, uint16_t size) {
+                m_Output->write(msg, size);
+#ifdef AUTO_FLUSHING
+                m_Output->flush(); 
+#endif // AUTO_FLUSHING
+                if (m_Output->bad())
+                {
+                    throw std::runtime_error("WriterThread:: IO Fail!");
+                }
+        });
+    }
+}
+#endif // LOG_ON
 
 std::string Log::GetTimeStr(const std::string& fmt)
 {

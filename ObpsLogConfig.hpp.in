@@ -1,7 +1,7 @@
 #define ObpsLog_VERSION_MAJOR @ObpsLog_VERSION_MAJOR@
 #define ObpsLog_VERSION_MINOR @ObpsLog_VERSION_MINOR@
 
-#define LOG_ON
+
 #define DEFAULT_QUEUE_SIZE 64
 #define MAX_MSG_SIZE 256
 #define POLLING_MICROS_DELAY 500
