@@ -3,6 +3,25 @@
 #include <iostream>
 
 using Log = obps::Log;
+
+/*
+* ----------------- Benchmarking ------------------
+*/
+#include <chrono>
+#define BENCHMARK(expr) do {                                    \
+    std::cerr << "Running Benchmark: " << __FUNCTION__ << "...\n";\
+    using hrez_clock = std::chrono::high_resolution_clock;      \
+    auto start = hrez_clock::now();                             \
+    {expr};                                                     \
+    auto end = hrez_clock::now();                               \
+    auto elapsed = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start);\
+    std::cerr << __FUNCTION__ << " : " << elapsed.count() << "ms\n";\
+} while(0)
+
+//
+//-------------------------------------------------
+//
+
 bool TestStdOut()
 {
     auto logger = Log::Create(std::cerr, obps::LogLevel::WARN);
@@ -96,32 +115,34 @@ bool TestConcurrent()
 }
 
 bool TestSorting()
-{
-    auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
-    auto logB = Log::Create("logB", obps::LogLevel::INFO);
-    auto logC = Log::Create("logC", obps::LogLevel::WARN);
-    auto logD = Log::Create("logD", obps::LogLevel::ERROR);
+{ BENCHMARK(
+        auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
+        auto logB = Log::Create("logB", obps::LogLevel::INFO);
+        auto logC = Log::Create("logC", obps::LogLevel::WARN);
+        auto logD = Log::Create("logD", obps::LogLevel::ERROR);
 
-    logA
-    . Attach(logB)
-    . Attach(logC)
-    . Attach(logD);
+        logA
+        . Attach(logB)
+        . Attach(logC)
+        . Attach(logD);
 
-    logA.Write(obps::LogLevel::DEBUG, "MESSAGE 1\n");
-    logA.Write(obps::LogLevel::INFO,  "MESSAGE 2\n");
-    logA.Write(obps::LogLevel::WARN,  "MESSAGE 3\n");
-    logA.Write(obps::LogLevel::ERROR, "MESSAGE 4\n");
-
+        logA.Write(obps::LogLevel::DEBUG, "MESSAGE 1\n");
+        logA.Write(obps::LogLevel::INFO,  "MESSAGE 2\n");
+        logA.Write(obps::LogLevel::WARN,  "MESSAGE 3\n");
+        logA.Write(obps::LogLevel::ERROR, "MESSAGE 4\n");
+    );
     return true;
 }
 
 int main()
 {
-    TestStdOut();
-    TestNotOpened();
-    TestMultiple();
-    TestSelfAttachment();
-    TestCyclicAttachment();
-    TestConcurrent();
-    TestSorting();
+    BENCHMARK(
+        TestStdOut();
+        TestNotOpened();
+        TestMultiple();
+        TestSelfAttachment();
+        TestCyclicAttachment();
+        TestConcurrent();
+        TestSorting();
+    );
 }
