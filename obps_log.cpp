@@ -9,7 +9,7 @@
 namespace obps
 {
 
-std::shared_ptr<Log> Log::Create(const std::string& logname, LogLevel level)
+std::shared_ptr<Log> Log::CreateRef(const std::string& logname, LogLevel level)
 {
 #ifdef LOG_ON
     std::string filename = MakeLogFileName(logname);
@@ -27,7 +27,7 @@ std::shared_ptr<Log> Log::Create(const std::string& logname, LogLevel level)
 #endif // LOG_ON
 }
 
-std::shared_ptr<Log> Log::Create(std::ostream& out, LogLevel level)
+std::shared_ptr<Log> Log::CreateRef(std::ostream& out, LogLevel level)
 {
 #ifdef LOG_ON
     return std::shared_ptr<Log>(
@@ -38,21 +38,42 @@ std::shared_ptr<Log> Log::Create(std::ostream& out, LogLevel level)
 #endif // LOG_ON
 }
 
-std::shared_ptr<Log> Log::Attach(std::shared_ptr<Log> other_log)
+Log Log::Create(const std::string& logname, LogLevel level)
 {
 #ifdef LOG_ON
-    if (other_log->HasAttachedLog() &&
-        &*other_log->m_AttachedLog.lock() == this) 
+    std::string filename = MakeLogFileName(logname);
+    auto file = std::make_unique<std::ofstream>(filename, std::ofstream::app);
+    if (file->fail())
+    {
+        throw std::runtime_error("Failed To Open File!");
+    }
+
+    return Log(std::move(file), level);
+#else
+    return Log(nullptr, level);
+#endif // LOG_ON
+}
+
+Log Log::Create(std::ostream& out, LogLevel level)
+{
+    return Log(std::make_unique<std::ostream>(out.rdbuf()), level);
+}
+
+Log& Log::Attach(Log& other_log)
+{
+#ifdef LOG_ON
+    if (other_log.HasAttachedLog() &&
+        other_log.m_AttachedLog == this) 
     {
         throw std::logic_error("Log::Cyclic Attachment is prohibited!");
     }
 
-    if (&*other_log == this)
+    if (&other_log == this)
     {
         throw std::logic_error("Log::Self Attachment is prohibited!");
     }
 
-    m_AttachedLog = other_log;
+    m_AttachedLog = &other_log;
 #endif // LOG_ON
     return other_log;
 }
@@ -60,7 +81,7 @@ std::shared_ptr<Log> Log::Attach(std::shared_ptr<Log> other_log)
 #ifdef LOG_ON
 bool Log::HasAttachedLog() const 
 {
-    return !m_AttachedLog.expired();
+    return m_AttachedLog != nullptr;
 }
 
 // bool Log::CheckNeedInMessageComposing(LogLevel level) const
@@ -69,7 +90,7 @@ bool Log::HasAttachedLog() const
 //         return true;
 
 //     if (HasAttachedLog())
-//         return m_AttachedLog.lock()->CheckNeedInMessageComposing(level);
+//         return m_AttachedLog->CheckNeedInMessageComposing(level);
 // }
 
 bool Log::IsRelevantLevel(LogLevel level) const
@@ -86,7 +107,7 @@ void Log::WriteForward(LogLevel level, const std::string& message)
 
     if(HasAttachedLog())
     {
-        m_AttachedLog.lock()->WriteForward(level, message);
+        m_AttachedLog->WriteForward(level, message);
     }
 }
 

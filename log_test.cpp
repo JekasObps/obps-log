@@ -3,10 +3,29 @@
 #include <iostream>
 
 using Log = obps::Log;
+
+/*
+* ----------------- Benchmarking ------------------
+*/
+#include <chrono>
+#define BENCHMARK(expr) do {                                    \
+    std::cerr << "Running Benchmark: " << __FUNCTION__ << "...\n";\
+    using hrez_clock = std::chrono::high_resolution_clock;      \
+    auto start = hrez_clock::now();                             \
+    {expr};                                                     \
+    auto end = hrez_clock::now();                               \
+    auto elapsed = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start);\
+    std::cerr << __FUNCTION__ << " : " << elapsed.count() << "ms\n";\
+} while(0)
+
+//
+//-------------------------------------------------
+//
+
 bool TestStdOut()
 {
     auto logger = Log::Create(std::cerr, obps::LogLevel::WARN);
-    logger->Write(obps::LogLevel::WARN, "[TestStdOut] Important Log Message");
+    logger.Write(obps::LogLevel::WARN, "[TestStdOut] Important Log Message");
     return true;
 }
 
@@ -19,7 +38,7 @@ bool TestNotOpened()
     catch ( std::runtime_error& e)
     {
         auto good_logger = Log::Create(std::cout, obps::LogLevel::INFO);
-        good_logger->Write(obps::LogLevel::INFO, "[TestNotOpened]::PASS");
+        good_logger.Write(obps::LogLevel::INFO, "[TestNotOpened]::PASS");
     }
     return true;
 }
@@ -29,9 +48,9 @@ bool TestMultiple()
     auto logger = Log::Create(std::cout, obps::LogLevel::WARN);
     auto secondary = Log::Create(std::cerr, obps::LogLevel::WARN);
 
-    logger->Attach(secondary);
+    logger.Attach(secondary);
 
-    logger->Write(obps::LogLevel::WARN, "[TestMultiple] Writing Two Targets!");
+    logger.Write(obps::LogLevel::WARN, "[TestMultiple] Writing Two Targets!");
     return true;
 }
 
@@ -41,15 +60,15 @@ bool TestSelfAttachment()
 
     try
     {
-        logger->Attach(logger);
+        logger.Attach(logger);
     }
     catch(std::logic_error& e)
     {
-        logger->Write(obps::LogLevel::DEBUG, "[TestSelfAttachment]::PASS");
+        logger.Write(obps::LogLevel::DEBUG, "[TestSelfAttachment]::PASS");
         return true;
     }
 
-    logger->Write(obps::LogLevel::DEBUG, "[TestSelfAttachment]::FAIL");
+    logger.Write(obps::LogLevel::DEBUG, "[TestSelfAttachment]::FAIL");
     return false;
 }
 
@@ -58,19 +77,19 @@ bool TestCyclicAttachment()
     auto logger = Log::Create(std::cout, obps::LogLevel::DEBUG);
     auto secondary = Log::Create(std::cerr, obps::LogLevel::DEBUG);
 
-    logger->Attach(secondary);
+    logger.Attach(secondary);
 
     try
     {
-        secondary->Attach(logger);
+        secondary.Attach(logger);
     }
     catch(std::logic_error& e)
     {
-        secondary->Write(obps::LogLevel::DEBUG, "[TestCyclicAttachment]::PASS");
+        secondary.Write(obps::LogLevel::DEBUG, "[TestCyclicAttachment]::PASS");
         return true;
     }
 
-    secondary->Write(obps::LogLevel::DEBUG, "[TestCyclicAttachment]::FAIL");
+    secondary.Write(obps::LogLevel::DEBUG, "[TestCyclicAttachment]::FAIL");
     return false;
 }
 
@@ -80,10 +99,10 @@ bool TestConcurrent()
     std::thread ts[16];
     for (auto& t : ts)
     {
-        t = std::thread([logger]{
+        t = std::thread([&logger]{
             for (int i = 0; i < 100; ++i)
             {
-                logger->Write(obps::LogLevel::ERROR, "[TestConcurrent] i = ", i);
+                logger.Write(obps::LogLevel::ERROR, "[TestConcurrent] i = ", i);
             }
         });
     }
@@ -96,32 +115,34 @@ bool TestConcurrent()
 }
 
 bool TestSorting()
-{
-    auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
-    auto logB = Log::Create("logB", obps::LogLevel::INFO);
-    auto logC = Log::Create("logC", obps::LogLevel::WARN);
-    auto logD = Log::Create("logD", obps::LogLevel::ERROR);
+{ BENCHMARK(
+        auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
+        auto logB = Log::Create("logB", obps::LogLevel::INFO);
+        auto logC = Log::Create("logC", obps::LogLevel::WARN);
+        auto logD = Log::Create("logD", obps::LogLevel::ERROR);
 
-    logA
-    -> Attach(logB)
-    -> Attach(logC)
-    -> Attach(logD);
+        logA
+        . Attach(logB)
+        . Attach(logC)
+        . Attach(logD);
 
-    logA->Write(obps::LogLevel::DEBUG, "MESSAGE 1\n");
-    logA->Write(obps::LogLevel::INFO,  "MESSAGE 2\n");
-    logA->Write(obps::LogLevel::WARN,  "MESSAGE 3\n");
-    logA->Write(obps::LogLevel::ERROR, "MESSAGE 4\n");
-
+        logA.Write(obps::LogLevel::DEBUG, "MESSAGE 1\n");
+        logA.Write(obps::LogLevel::INFO,  "MESSAGE 2\n");
+        logA.Write(obps::LogLevel::WARN,  "MESSAGE 3\n");
+        logA.Write(obps::LogLevel::ERROR, "MESSAGE 4\n");
+    );
     return true;
 }
 
 int main()
 {
-    TestStdOut();
-    TestNotOpened();
-    TestMultiple();
-    TestSelfAttachment();
-    TestCyclicAttachment();
-    TestConcurrent();
-    TestSorting();
+    BENCHMARK(
+        TestStdOut();
+        TestNotOpened();
+        TestMultiple();
+        TestSelfAttachment();
+        TestCyclicAttachment();
+        TestConcurrent();
+        TestSorting();
+    );
 }

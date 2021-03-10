@@ -38,10 +38,14 @@ constexpr auto PrettyLevel(const LogLevel level)
 class Log final
 {
 public:
-    static std::shared_ptr<Log> Create(const std::string& logname, LogLevel level);
-    static std::shared_ptr<Log> Create(std::ostream& out, LogLevel level);
+    static std::shared_ptr<Log> CreateRef(const std::string& logname, LogLevel level);
+    static std::shared_ptr<Log> CreateRef(std::ostream& out, LogLevel level);
     
-    std::shared_ptr<Log> Attach(std::shared_ptr<Log> other_log);
+    static Log Create(const std::string& logname, LogLevel level);
+    static Log Create(std::ostream& out, LogLevel level);
+    
+    Log& Attach(Log& other_log);
+
     bool HasAttachedLog() const;
 
     template <typename ...Args>
@@ -104,8 +108,7 @@ private:
     std::thread m_LogWriter;
     Formatter m_Format;
 
-    std::weak_ptr<Log> m_AttachedLog;
-
+    Log* m_AttachedLog = nullptr;
 #endif // LOG_ON
 };
 
@@ -126,13 +129,13 @@ void Log::WriteForward(LogLevel level, Args ...args)
         SendToQueue(message);
 
         if (HasAttachedLog())
-            m_AttachedLog.lock()->WriteForward(level, message);
+            m_AttachedLog->WriteForward(level, message);
 
         return;
     }
 
     if (HasAttachedLog())
-        m_AttachedLog.lock()->WriteForward(level, args...);
+        m_AttachedLog->WriteForward(level, args...);
 }
 
 template <typename ...Args>
