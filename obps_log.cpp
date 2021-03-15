@@ -9,32 +9,14 @@
 namespace obps
 {
 
-std::unique_ptr<std::ostream> Log::OpenFileStream(const std::string& logname)
-{
-    auto file = std::make_unique<std::ofstream>(MakeLogFileName(logname), std::ios::app);
-    if (file->fail())
-    {
-        throw std::runtime_error("Failed To Open LogFile!");
-    }
-    return std::move(file);
-}
-
 std::shared_ptr<Log> Log::CreateRef(const LogSpecs& specs)
 {
-#ifdef LOG_ON
     return std::make_shared<Log>(specs);
-#else
-    return nullptr;
-#endif // LOG_ON
 }
 
 Log Log::Create(const LogSpecs& specs)
 {
-#ifdef LOG_ON
     return Log(specs);
-#else
-    return Log(nullptr, level);
-#endif // LOG_ON
 }
 
 Log& Log::Attach(Log& other_log)
@@ -60,6 +42,16 @@ Log& Log::Attach(Log& other_log)
 bool Log::HasAttachedLog() const 
 {
     return m_AttachedLog != nullptr;
+}
+
+std::unique_ptr<std::ostream> Log::OpenFileStream(const std::string& logname)
+{
+    auto file = std::make_unique<std::ofstream>(MakeLogFileName(logname), std::ios::app);
+    if (file->fail())
+    {
+        throw std::runtime_error("Failed To Open LogFile!");
+    }
+    return std::move(file);
 }
 
 bool Log::IsRelevantLevel(LogLevel level) const
@@ -106,7 +98,6 @@ catch (std::exception &e)
 {
     m_WriterException = std::make_exception_ptr(e);
 }
-#endif // LOG_ON
 
 void Log::HandleWriterException()
 try {
@@ -125,6 +116,8 @@ catch(std::exception &e)
     std::exit(-1);
 #endif // DEBUG_MODE
 }
+
+#endif // LOG_ON
 
 std::string Log::GetTimeStr(const std::string& fmt)
 {
