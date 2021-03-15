@@ -4,6 +4,14 @@ project(ObpsLog VERSION 0.2)
 
 configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
+if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
+    message("SET DEBUG_MODE")
+    add_definitions(-DDEBUG_MODE)
+elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
+    message("SET RELEASE")
+    add_definitions(-DNDEBUG)
+endif()
+
 if (WIN32)
     add_definitions(-DWIN32)
 elseif(UNIX AND NOT APPLE)
