@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <sstream>
+#include <iostream>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
@@ -38,11 +39,84 @@ constexpr auto PrettyLevel(const LogLevel level)
 class Log final
 {
 public:
-    static std::shared_ptr<Log> CreateRef(const std::string& logname, LogLevel level);
-    static std::shared_ptr<Log> CreateRef(std::ostream& out, LogLevel level);
+    struct MessageData
+    {
+        const std::string&  Content;
+        const std::string&  DateFmt;
+        const std::string&  PrettyLevel;
+        std::thread::id     Tid;
+    };
     
-    static Log Create(const std::string& logname, LogLevel level);
-    static Log Create(std::ostream& out, LogLevel level);
+    using FormatSignature = void (std::ostream&, MessageData);
+    using Formatter = std::function<FormatSignature>;
+    using LogExceptHandler = std::function<void(std::exception& e)>;
+
+    struct LogSpecs
+    {
+        enum TargetType 
+        {
+            FILENAME, 
+            STREAM
+        };
+        
+        struct FilenameOrStream
+        {
+            FilenameOrStream(){}
+            FilenameOrStream(const char* filename)
+              : Type(TargetType::FILENAME) { Value.Filename = filename; }
+            FilenameOrStream(std::ostream& stream)
+              : Type(TargetType::STREAM) { Value.Stream = &stream; }
+              
+            union 
+            {
+                const char*   Filename;
+                std::ostream* Stream;
+            } Value;
+
+            TargetType Type;
+        };
+        
+        LogSpecs& Target(FilenameOrStream target) 
+        { 
+            _Target = target;
+            return *this;
+        }
+        LogSpecs& Level(LogLevel level)
+        {
+            _Level = level;
+            return *this;
+        }
+        LogSpecs& Format(Formatter f)
+        {
+            _Format = f;
+            return *this;
+        }
+        LogSpecs& ExceptionHandler(LogExceptHandler h)
+        {
+            _Handler = h;
+            return *this;
+        }
+        LogSpecs& QueueSize(size_t size)
+        {
+            _QSize = size;
+            return *this;
+        } 
+        LogSpecs& Attached(Log& log)
+        {
+            _Attached = &log;
+            return *this;
+        }
+
+        FilenameOrStream _Target   = std::cout;
+        LogLevel         _Level    = LogLevel::WARN;
+        Formatter        _Format   = default_format;
+        LogExceptHandler _Handler  = nullptr;
+        size_t           _QSize    = DEFAULT_QUEUE_SIZE;
+        Log*             _Attached = nullptr;
+    };
+    
+    static std::shared_ptr<Log> CreateRef(const LogSpecs& specs);
+    static Log Create(const LogSpecs& specs);
     
     Log& Attach(Log& other_log);
 
@@ -53,38 +127,21 @@ public:
     
     ~Log();
     
-    // FORMATTING--:
-    struct MessageData
-    {
-        const std::string&  Content;
-        const std::string&  DateFmt;
-        const std::string&  PrettyLevel;
-        std::thread::id     Tid;
-    };
-
-    using FormatSignature = void (std::ostream&, MessageData);
-    using Formatter = std::function<FormatSignature>;
-
     static FormatSignature default_format;
     static FormatSignature JSON_format;
-
-    // :--FORMATTING //
     static std::string GetTimeStr(const std::string& fmt);
+
+    explicit Log(const LogSpecs& specs);
+private:
+    explicit Log(std::unique_ptr<std::ostream> stream, LogLevel level, 
+        size_t queue_size, Formatter formatter, Log* attach);
 
     Log(const Log&) = delete;
     Log(Log&&) = delete;
     Log& operator=(const Log&) = delete;
     Log& operator=(Log&&) = delete;
-
-private:
-    explicit Log(
-        std::unique_ptr<std::ostream> stream, 
-        LogLevel level = LogLevel::WARN, 
-        size_t queue_size = DEFAULT_QUEUE_SIZE,
-        Formatter formatter = default_format
-    );
     
-    // bool CheckNeedInMessageComposing(LogLevel level) const;
+    static std::unique_ptr<std::ostream> OpenFileStream(const std::string& logname);
     bool IsRelevantLevel(LogLevel level) const;
 
     template <typename ...Args>
@@ -100,12 +157,14 @@ private:
     static std::string MakeLogFileName(const std::string& prefix_name);
 
     void WriterFunction();
+    void HandleWriterException();
 
 #ifdef LOG_ON
     std::unique_ptr<std::ostream> m_Output;
     LogLevel m_Level;
     LogQueue<MAX_MSG_SIZE, POLLING_MICROS_DELAY> m_Queue;
     std::thread m_LogWriter;
+    std::exception_ptr m_WriterException;
     Formatter m_Format;
 
     Log* m_AttachedLog = nullptr;
@@ -116,6 +175,7 @@ template <typename ...Args>
 void Log::Write(LogLevel level, Args ...args)
 {
 #ifdef LOG_ON
+    HandleWriterException();
     WriteForward(level, args...);
 #endif // LOG_ON
 }

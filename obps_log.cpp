@@ -9,54 +9,32 @@
 namespace obps
 {
 
-std::shared_ptr<Log> Log::CreateRef(const std::string& logname, LogLevel level)
+std::unique_ptr<std::ostream> Log::OpenFileStream(const std::string& logname)
 {
-#ifdef LOG_ON
-    std::string filename = MakeLogFileName(logname);
-    auto file = std::make_unique<std::ofstream>(filename, std::ofstream::app);
+    auto file = std::make_unique<std::ofstream>(MakeLogFileName(logname), std::ios::app);
     if (file->fail())
     {
-        throw std::runtime_error("Failed To Open File!");
+        throw std::runtime_error("Failed To Open LogFile!");
     }
-
-    return std::shared_ptr<Log>(
-        new Log(std::move(file), level)
-    );
-#else 
-    return nullptr;
-#endif // LOG_ON
+    return std::move(file);
 }
 
-std::shared_ptr<Log> Log::CreateRef(std::ostream& out, LogLevel level)
+std::shared_ptr<Log> Log::CreateRef(const LogSpecs& specs)
 {
 #ifdef LOG_ON
-    return std::shared_ptr<Log>(
-        new Log(std::make_unique<std::ostream>(out.rdbuf()), level)
-    );
+    return std::make_shared<Log>(specs);
 #else
     return nullptr;
 #endif // LOG_ON
 }
 
-Log Log::Create(const std::string& logname, LogLevel level)
+Log Log::Create(const LogSpecs& specs)
 {
 #ifdef LOG_ON
-    std::string filename = MakeLogFileName(logname);
-    auto file = std::make_unique<std::ofstream>(filename, std::ofstream::app);
-    if (file->fail())
-    {
-        throw std::runtime_error("Failed To Open File!");
-    }
-
-    return Log(std::move(file), level);
+    return Log(specs);
 #else
     return Log(nullptr, level);
 #endif // LOG_ON
-}
-
-Log Log::Create(std::ostream& out, LogLevel level)
-{
-    return Log(std::make_unique<std::ostream>(out.rdbuf()), level);
 }
 
 Log& Log::Attach(Log& other_log)
@@ -84,15 +62,6 @@ bool Log::HasAttachedLog() const
     return m_AttachedLog != nullptr;
 }
 
-// bool Log::CheckNeedInMessageComposing(LogLevel level) const
-// {
-//     if (IsRelevantLevel(level))
-//         return true;
-
-//     if (HasAttachedLog())
-//         return m_AttachedLog->CheckNeedInMessageComposing(level);
-// }
-
 bool Log::IsRelevantLevel(LogLevel level) const
 {
     return m_Level >= level;
@@ -116,24 +85,46 @@ void Log::SendToQueue(const std::string& message)
     m_Queue.Write(message.c_str(), message.size());
 }
 
-void Log::WriterFunction()
+void Log::WriterFunction() 
+try 
 {
     while (m_Queue.isOpen() || m_Queue.isReadAvailable())
     {
-        m_Queue.ReadTo(
-            [this](const char *msg, uint16_t size) {
-                m_Output->write(msg, size);
-#ifdef AUTO_FLUSHING
-                m_Output->flush(); 
-#endif // AUTO_FLUSHING
-                if (m_Output->bad())
-                {
-                    throw std::runtime_error("WriterThread:: IO Fail!");
-                }
+        m_Queue.ReadTo ([this](const char *msg, uint16_t size){
+            m_Output->write(msg, size);
+  #ifdef AUTO_FLUSHING
+            m_Output->flush(); 
+  #endif // AUTO_FLUSHING
+            if (m_Output->fail())
+            {
+                throw std::exception("From Writer thread: IO Failed!");
+            }
         });
     }
 }
+catch (std::exception &e)
+{
+    m_WriterException = std::make_exception_ptr(e);
+}
 #endif // LOG_ON
+
+void Log::HandleWriterException()
+try {
+    if (m_WriterException)
+    {
+        std::rethrow_exception(m_WriterException);
+    }
+}
+catch(std::exception &e)
+{
+    // it's considerable to use a user defined hook here.
+#ifdef DEBUG_MODE
+    throw std::runtime_error("DEBUG::throw instead of exit(-1)");
+#else
+    std::cerr << e.what() << "EXITING WITH CODE -1\n";
+    std::exit(-1);
+#endif // DEBUG_MODE
+}
 
 std::string Log::GetTimeStr(const std::string& fmt)
 {
@@ -155,22 +146,54 @@ std::string Log::MakeLogFileName(const std::string& prefix_name)
 }
 
 Log::Log(std::unique_ptr<std::ostream> stream, LogLevel level, 
-        size_t queue_size, Formatter format)
+        size_t queue_size, Formatter format, Log* attached)
 #ifdef LOG_ON
   : m_Output(std::move(stream))
   , m_Level(level)
   , m_Queue(queue_size)
   , m_LogWriter(&Log::WriterFunction, this)
   , m_Format(format)
+  , m_AttachedLog(attached)
 #endif // LOG_ON
 {}
+
+Log::Log(const LogSpecs& specs)
+#ifdef LOG_ON
+  : Log(nullptr,
+        specs._Level,
+        DEFAULT_QUEUE_SIZE,
+        specs._Format,
+        specs._Attached)
+{
+    switch(specs._Target.Type)
+    {
+        case LogSpecs::FILENAME:
+        {
+            auto file = OpenFileStream(specs._Target.Value.Filename);
+            m_Output.swap(file);
+            break;
+        }
+        case LogSpecs::STREAM:
+        {
+            auto stream = std::make_unique<std::ostream>(specs._Target.Value.Stream->rdbuf());
+            m_Output.swap(stream);
+            break;
+        }
+    }
+}
+#else 
+{}
+#endif //LOG_ON
 
 Log::~Log()
 {
 #ifdef LOG_ON
     m_Queue.Close();
     m_LogWriter.join();
-    m_Output->flush();
+    
+    if (m_Output)
+        m_Output->flush();
+
 #endif // LOG_ON
 }
 

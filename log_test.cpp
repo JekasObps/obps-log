@@ -3,6 +3,8 @@
 #include <iostream>
 
 using Log = obps::Log;
+using LogLevel = obps::LogLevel;
+using LogSpecs = obps::Log::LogSpecs;
 
 /*
 * ----------------- Benchmarking ------------------
@@ -24,20 +26,26 @@ using Log = obps::Log;
 
 bool TestStdOut()
 {
-    auto logger = Log::Create(std::cerr, obps::LogLevel::WARN);
+    Log::LogSpecs specs;
+    specs
+        .Target(std::cerr)
+        .Level (obps::LogLevel::WARN)
+        .Format(Log::default_format);
+
+    auto logger = Log(specs);
     logger.Write(obps::LogLevel::WARN, "[TestStdOut] Important Log Message");
     return true;
 }
 
 bool TestNotOpened()
 {
-    try 
+    try
     {
-        auto bad_logger = Log::Create("//", obps::LogLevel::WARN);
+        auto bad_logger = Log({"//", LogLevel::WARN});
     }
     catch ( std::runtime_error& e)
     {
-        auto good_logger = Log::Create(std::cout, obps::LogLevel::INFO);
+        auto good_logger = Log({std::cout, obps::LogLevel::INFO});
         good_logger.Write(obps::LogLevel::INFO, "[TestNotOpened]::PASS");
     }
     return true;
@@ -45,8 +53,8 @@ bool TestNotOpened()
 
 bool TestMultiple()
 {
-    auto logger = Log::Create(std::cout, obps::LogLevel::WARN);
-    auto secondary = Log::Create(std::cerr, obps::LogLevel::WARN);
+    auto logger = Log({std::cout, obps::LogLevel::WARN});
+    auto secondary = Log({std::cerr, obps::LogLevel::WARN});
 
     logger.Attach(secondary);
 
@@ -56,7 +64,7 @@ bool TestMultiple()
 
 bool TestSelfAttachment()
 {
-    auto logger = Log::Create(std::cout, obps::LogLevel::DEBUG);
+    auto logger = Log({std::cout, obps::LogLevel::DEBUG});
 
     try
     {
@@ -74,8 +82,8 @@ bool TestSelfAttachment()
 
 bool TestCyclicAttachment()
 {
-    auto logger = Log::Create(std::cout, obps::LogLevel::DEBUG);
-    auto secondary = Log::Create(std::cerr, obps::LogLevel::DEBUG);
+    auto logger = Log({std::cout, obps::LogLevel::DEBUG});
+    auto secondary = Log({std::cerr, obps::LogLevel::DEBUG});
 
     logger.Attach(secondary);
 
@@ -95,7 +103,7 @@ bool TestCyclicAttachment()
 
 bool TestConcurrent()
 {
-    auto logger = Log::Create("concurrent", obps::LogLevel::WARN);
+    auto logger = Log({"concurrent", obps::LogLevel::WARN});
     std::thread ts[16];
     for (auto& t : ts)
     {
@@ -116,10 +124,10 @@ bool TestConcurrent()
 
 bool TestSorting()
 { BENCHMARK(
-        auto logA = Log::Create("logA", obps::LogLevel::DEBUG);
-        auto logB = Log::Create("logB", obps::LogLevel::INFO);
-        auto logC = Log::Create("logC", obps::LogLevel::WARN);
-        auto logD = Log::Create("logD", obps::LogLevel::ERROR);
+        auto logA = Log({"logA", obps::LogLevel::DEBUG});
+        auto logB = Log({"logB", obps::LogLevel::INFO});
+        auto logC = Log({"logC", obps::LogLevel::WARN});
+        auto logD = Log({"logD", obps::LogLevel::ERROR});
 
         logA
         . Attach(logB)
@@ -134,6 +142,31 @@ bool TestSorting()
     return true;
 }
 
+#include <chrono>
+bool TestThreadException()
+{
+    const char* filename = "out1.log";
+    std::ofstream out(filename);
+
+    out.exceptions (std::ofstream::badbit | std::ofstream::failbit);
+    auto logger = Log({out, obps::LogLevel::DEBUG});
+    logger.Write(obps::LogLevel::DEBUG, "Ok!");
+    out.close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    try 
+    { // catching error in debug mode
+        logger.Write(obps::LogLevel::DEBUG, "Error!");
+    }
+    catch (std::exception &e)
+    {
+        std::cerr << "Expected: (" << e.what() << ")\n";
+        return true;
+    }
+    
+    return false;
+}
+
 int main()
 {
     BENCHMARK(
@@ -144,5 +177,6 @@ int main()
         TestCyclicAttachment();
         TestConcurrent();
         TestSorting();
+        TestThreadException();
     );
 }
