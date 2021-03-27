@@ -14,11 +14,6 @@ std::shared_ptr<Log> Log::CreateRef(const LogSpecs& specs)
     return std::make_shared<Log>(specs);
 }
 
-Log Log::Create(const LogSpecs& specs)
-{
-    return Log(specs);
-}
-
 Log& Log::Attach(Log& other_log)
 {
 #ifdef LOG_ON

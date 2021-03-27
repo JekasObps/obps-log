@@ -116,7 +116,6 @@ public:
     };
     
     static std::shared_ptr<Log> CreateRef(const LogSpecs& specs);
-    static Log Create(const LogSpecs& specs);
     
     Log& Attach(Log& other_log);
 
@@ -159,7 +158,7 @@ private:
     void WriterFunction();
     void HandleWriterException();
 
-#ifdef LOG_ON
+#if defined(LOG_ON)
     std::unique_ptr<std::ostream> m_Output;
     LogLevel m_Level;
     LogQueue<MAX_MSG_SIZE, POLLING_MICROS_DELAY> m_Queue;
