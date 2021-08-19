@@ -22,6 +22,7 @@ configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
     message("SET DEBUG_MODE")
     add_definitions(-DDEBUG_MODE)
+    add_definitions(-DFLUSH_EVERY_MESSAGE)
 elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
     message("SET RELEASE")
     add_definitions(-DNDEBUG)
@@ -53,8 +54,12 @@ endif()
 
 enable_testing(True)
 
-add_executable(log_test log_test.cpp)
+add_executable(log_test test.cpp)
+# add_executable(log_test log_test.cpp)
+
 target_link_libraries(log_test PUBLIC obps_log)
 set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
-
 add_test( NAME log_test COMMAND log_test )
+
+
+

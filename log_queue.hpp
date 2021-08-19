@@ -148,7 +148,7 @@ uint16_t LogQueue<msg_size, polling_micros>::ReadToFile(std::ostream& dest)
 template <size_t msg_size, size_t polling_micros>
 uint16_t LogQueue<msg_size, polling_micros>::ReadTo(std::function<void(const char *msg, uint16_t size)> f)
 {
-    size_t size;
+    uint16_t size;
 
     ReadDecorator([this, &f, &size]{
         size = m_Reader->Size;
