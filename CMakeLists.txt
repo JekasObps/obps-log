@@ -4,12 +4,29 @@ project(ObpsLog VERSION 0.2)
 
 # setting up gtest
 set(CMAKE_CXX_STANDARD 11)
+  
+if (WIN32)
+    message("OS: WINDOWS")
+    add_definitions(-DWIN32)
+   
+    execute_process(
+        COMMAND powershell "Remove-item -recurse -force ${CMAKE_CURRENT_SOURCE_DIR}/build/_deps"
+        RESULT_VARIABLE result
+        )
+    message("Removing ${CMAKE_CURRENT_SOURCE_DIR}/build/_deps:\r\n" ${result})   
+
+elseif(UNIX AND NOT APPLE)
+    message("OS: LINUX")
+    add_definitions(-DLINUX)
+    set(LINUX True)	
+endif()
+
 
 include(FetchContent)
 FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
-)
+    googletest
+    URL https://github.com/google/googletest/archive/0134d73a4902574269ff2e42827f7573d3df08ae.zip
+    )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
@@ -25,14 +42,6 @@ if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
 elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
     message("SET RELEASE")
     add_definitions(-DNDEBUG)
-endif()
-
-
-if (WIN32)
-    add_definitions(-DWIN32)
-elseif(UNIX AND NOT APPLE)
-    add_definitions(-DLINUX)
-    set(LINUX True)	
 endif()
 
 if (ENABLE_LOGGING)
@@ -67,8 +76,5 @@ if (ENABLE_LOGGING)
     target_link_libraries(log_test PUBLIC obps_log)
 endif()
 
-set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
+set_target_properties(log_test PROPERTIES CXX_STANDARD 11)
 add_test( NAME log_test COMMAND log_test )
-
-
-
