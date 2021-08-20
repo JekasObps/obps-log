@@ -8,12 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 if (WIN32)
     message("OS: WINDOWS")
     add_definitions(-DWIN32)
-   
-    execute_process(
-        COMMAND powershell "Remove-item -recurse -force ${CMAKE_CURRENT_SOURCE_DIR}/build/_deps"
-        RESULT_VARIABLE result
-        )
-    message("Removing ${CMAKE_CURRENT_SOURCE_DIR}/build/_deps:\r\n" ${result})   
 
 elseif(UNIX AND NOT APPLE)
     message("OS: LINUX")
