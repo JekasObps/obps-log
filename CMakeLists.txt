@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.8)
 project(ObpsLog VERSION 0.2)
 
 # setting up gtest
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
   
 if (WIN32)
     message("OS: WINDOWS")
@@ -47,6 +47,7 @@ endif()
 if (ENABLE_LOGGING)
     message("ENABLING LOGGING")
     add_definitions(-DLOG_ON)
+
     add_library(obps_log STATIC obps_log.cpp)
     
     set_target_properties( obps_log PROPERTIES
@@ -76,5 +77,5 @@ if (ENABLE_LOGGING)
     target_link_libraries(log_test PUBLIC obps_log)
 endif()
 
-set_target_properties(log_test PROPERTIES CXX_STANDARD 11)
+set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
 add_test( NAME log_test COMMAND log_test )
