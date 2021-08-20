@@ -14,9 +14,8 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-
-
-
+# sourcing configuration
+include(${CMAKE_CURRENT_SOURCE_DIR}/Conf.cmake)
 configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
 if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
@@ -28,6 +27,7 @@ elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
     add_definitions(-DNDEBUG)
 endif()
 
+
 if (WIN32)
     add_definitions(-DWIN32)
 elseif(UNIX AND NOT APPLE)
@@ -35,21 +35,27 @@ elseif(UNIX AND NOT APPLE)
     set(LINUX True)	
 endif()
 
-add_library(obps_log STATIC obps_log.cpp)
+if (ENABLE_LOGGING)
+    message("ENABLING LOGGING")
+    add_definitions(-DLOG_ON)
+    add_library(obps_log STATIC obps_log.cpp)
+    
+    set_target_properties( obps_log PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/lib
+        CXX_STANDARD 20
+        )
 
-set_target_properties( obps_log PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/lib
-    CXX_STANDARD 20
-    )
+    target_include_directories( obps_log
+        INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+        )
 
-target_include_directories( obps_log
-    INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-    )
+    if(LINUX)
+        target_link_libraries(obps_log PUBLIC pthread)
+    endif()
 
-if(LINUX)
-    target_link_libraries(obps_log PUBLIC pthread)
-endif()
-
+else()
+    remove_definitions(-DLOG_ON)
+endif() # ENABLE_LOGGING
 ###############################       TEST        ##############################
 
 enable_testing(True)

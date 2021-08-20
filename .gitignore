@@ -1,9 +1,10 @@
 *
 
+!.gitignore
 !*.cpp
 !*.hpp
-!.gitignore
 !*.in
+!*.cmake
 !CMakeLists.txt
 
 ObpsLogConfig.hpp

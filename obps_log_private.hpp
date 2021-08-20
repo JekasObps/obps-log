@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ObpsLogConfig.hpp"
+
 #include <thread>
 #include <sstream>
 #include <iostream>

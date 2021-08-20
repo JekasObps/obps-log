@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ObpsLogConfig.hpp"
 #ifdef LOG_ON
     #include "obps_log_private.hpp"
 
@@ -26,7 +25,7 @@
     #endif // DEBUG_MODE
 
 #else
-    #define MakeScopedLog(...) ;
+    #define MakeScopeLog(...) ;
     #define Attach(...) ;
     #define Error(...) ;
     #define Warning(...) ;
