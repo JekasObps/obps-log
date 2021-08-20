@@ -63,7 +63,10 @@ enable_testing(True)
 add_executable(log_test test.cpp)
 # add_executable(log_test log_test.cpp)
 
-target_link_libraries(log_test PUBLIC obps_log)
+if (ENABLE_LOGGING)
+    target_link_libraries(log_test PUBLIC obps_log)
+endif()
+
 set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
 add_test( NAME log_test COMMAND log_test )
 
