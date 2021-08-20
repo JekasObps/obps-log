@@ -208,8 +208,14 @@ std::string Log::BuildMessage(LogLevel level, Args ...args)
 
     helper_stream.clear();
 
-    m_Format(helper_stream, { std::move(content), "%F %T", 
-                              PrettyLevel(level), std::this_thread::get_id() });
+    auto&& message_data = MessageData{ 
+        std::move(content), 
+        "%F %T", 
+        PrettyLevel(level), 
+        std::this_thread::get_id() 
+    };
+
+    m_Format(helper_stream, message_data);
 
     std::getline(helper_stream, message, '\0');
     return message;
