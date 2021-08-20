@@ -9,11 +9,6 @@
 namespace obps
 {
 
-std::shared_ptr<Log> Log::CreateRef(const LogSpecs& specs)
-{
-    return std::make_shared<Log>(specs);
-}
-
 Log& Log::Attach(Log& other_log)
 {
     if (other_log.HasAttachedLog() &&

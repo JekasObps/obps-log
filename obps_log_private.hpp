@@ -121,8 +121,6 @@ public:
         Log*             _Attached = nullptr;
     };
     
-    static std::shared_ptr<Log> CreateRef(const LogSpecs& specs);
-    
     Log& Attach(Log& other_log);
 
     bool HasAttachedLog() const;
@@ -130,13 +128,12 @@ public:
     template <typename ...Args>
     void Write(LogLevel level, Args ...args);
     
-    ~Log();
-    
     static FormatSignature default_format;
     static FormatSignature JSON_format;
     static std::string GetTimeStr(const std::string& fmt);
 
     explicit Log(const LogSpecs& specs);
+    ~Log();
     
 private:
     explicit Log(std::unique_ptr<std::ostream> stream, LogLevel level, 
@@ -165,7 +162,6 @@ private:
     void WriterFunction();
     void HandleWriterException();
 
-#if defined(LOG_ON)
     std::unique_ptr<std::ostream> m_Output;
     LogLevel m_Level;
     LogQueue<MAX_MSG_SIZE, POLLING_MICROS_DELAY> m_Queue;
@@ -174,16 +170,13 @@ private:
     Formatter m_Format;
 
     Log* m_AttachedLog = nullptr;
-#endif // LOG_ON
 };
 
 template <typename ...Args>
 void Log::Write(LogLevel level, Args ...args)
 {
-#ifdef LOG_ON
     HandleWriterException();
     WriteForward(level, args...);
-#endif // LOG_ON
 }
 
 template <typename ...Args>
