@@ -1,6 +1,12 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 
 project(ObpsLog VERSION 0.2)
+
+# Determine ObpsLog build as a standalone project
+set(MAIN_PROJECT OFF)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(MAIN_PROJECT ON)
+endif()
 
 # setting up gtest
 set(CMAKE_CXX_STANDARD 20)
@@ -27,34 +33,37 @@ elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
     add_definitions(-DNDEBUG)
 endif()
 
-if (ENABLE_LOGGING)
-    message("ENABLING LOGGING")
-    set(LOG_ON True)
+add_library(obps_log STATIC obps_log.cpp)
 
-    add_library(obps_log STATIC obps_log.cpp)
-    
-    set_target_properties( obps_log PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/lib
-        CXX_STANDARD 20
-        )
+set_target_properties( obps_log PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/lib
+    CXX_STANDARD 20
+)
 
-    target_include_directories( obps_log
-        INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-        )
+target_include_directories( obps_log
+    INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
-    if(LINUX)
-        target_link_libraries(obps_log PUBLIC pthread)
+if (LINUX)
+    target_link_libraries(obps_log PUBLIC pthread)
+endif()
+
+function(EnableLogging enable)
+    if (${enable})
+        message("ENABLING LOGGING")
+        set(LOG_ON True)
+    else()
+        unset(LOG_ON)
     endif()
+    configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
+endfunction()
 
-else()
-    unset(LOG_ON)
-endif() # ENABLE_LOGGING
-configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
-
-
+EnableLogging(ENABLE_LOGGING)
+    
 ### TESTING:
 
-if (${ObpsLog_IS_TOP_LEVEL})
+if (MAIN_PROJECT)
+    message("Enable Testing:")
     enable_testing(True)
 
     include(FetchContent)
