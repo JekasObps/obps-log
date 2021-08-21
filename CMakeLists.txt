@@ -15,19 +15,8 @@ elseif(UNIX AND NOT APPLE)
     set(LINUX True)	
 endif()
 
-
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/0134d73a4902574269ff2e42827f7573d3df08ae.zip
-    )
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
 # sourcing configuration
 include(${CMAKE_CURRENT_SOURCE_DIR}/Conf.cmake)
-configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
 if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
     message("SET DEBUG_MODE")
@@ -40,7 +29,7 @@ endif()
 
 if (ENABLE_LOGGING)
     message("ENABLING LOGGING")
-    add_definitions(-DLOG_ON)
+    set(LOG_ON True)
 
     add_library(obps_log STATIC obps_log.cpp)
     
@@ -58,18 +47,33 @@ if (ENABLE_LOGGING)
     endif()
 
 else()
-    remove_definitions(-DLOG_ON)
+    unset(LOG_ON)
 endif() # ENABLE_LOGGING
-###############################       TEST        ##############################
+configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)
 
-enable_testing(True)
 
-add_executable(log_test test.cpp)
-# add_executable(log_test log_test.cpp)
+### TESTING:
 
-if (ENABLE_LOGGING)
-    target_link_libraries(log_test PUBLIC obps_log)
+if (${ObpsLog_IS_TOP_LEVEL})
+    enable_testing(True)
+
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/0134d73a4902574269ff2e42827f7573d3df08ae.zip
+        )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    
+    add_executable(log_test test.cpp)
+    # add_executable(log_test log_test.cpp)
+
+    if (ENABLE_LOGGING)
+        target_link_libraries(log_test PUBLIC obps_log)
+    endif()
+
+    set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
+    add_test( NAME log_test COMMAND log_test )
+
 endif()
-
-set_target_properties(log_test PROPERTIES CXX_STANDARD 20)
-add_test( NAME log_test COMMAND log_test )

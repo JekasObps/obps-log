@@ -1,6 +1,7 @@
-#cmakedefine ObpsLog_VERSION_MAJOR @ObpsLog_VERSION_MAJOR@
-#cmakedefine ObpsLog_VERSION_MINOR @ObpsLog_VERSION_MINOR@
+#define ObpsLog_VERSION_MAJOR @ObpsLog_VERSION_MAJOR@
+#define ObpsLog_VERSION_MINOR @ObpsLog_VERSION_MINOR@
 
+#cmakedefine LOG_ON
 #cmakedefine DEFAULT_QUEUE_SIZE @DEFAULT_QUEUE_SIZE@
 #cmakedefine MAX_MSG_SIZE @MAX_MSG_SIZE@
 #cmakedefine POLLING_MICROS_DELAY @POLLING_MICROS_DELAY@

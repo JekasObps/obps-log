@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ObpsLogConfig.hpp"
+
 #ifdef LOG_ON
     #include "obps_log_private.hpp"
 
