@@ -1,7 +1,5 @@
 #pragma once
 
-#include "ObpsLogConfig.hpp"
-
 #ifdef LOG_ON
     #include "obps_log_private.hpp"
 
@@ -9,7 +7,7 @@
     #define EXP(line, suf) CONCAT(line, suf)
 
     #define SCOPE_LOG __obps_scope_log
-    #define MakeScopeLog(...) static auto SCOPE_LOG = obps::Log( __VA_ARGS__ );
+    #define MakeScopeLog(...) static auto SCOPE_LOG = obps::Log( __VA_ARGS__ )
     
     #define Attach(...) \
         static auto EXP(__attached_log_, __LINE__) = obps::Log(__VA_ARGS__); \
