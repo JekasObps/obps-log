@@ -107,9 +107,9 @@ TEST_F(LogQueueTest, TestIsAlive) {
 
 
 TEST_F(LogQueueTest, TestShutDownReaders) {
-    EXPECT_TRUE(queue.isOpen());
-    queue.ShutDownReaders();
-    EXPECT_FALSE(queue.isOpen());
+    EXPECT_TRUE(queue.isAlive());
+    queue.ShutDown();
+    EXPECT_FALSE(queue.isAlive());
 }
 
 

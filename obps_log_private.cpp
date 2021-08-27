@@ -76,7 +76,7 @@ void Log::SendToQueue(const std::string& message)
 void Log::WriterFunction() 
 try 
 {
-    while (m_Queue.isOpen() || m_Queue.isReadAvailable())
+    while (m_Queue.isAlive())
     {
         m_Queue.ReadTo([this](const char *msg, uint16_t size){
             m_Output->write(msg, size);
@@ -169,7 +169,7 @@ Log::Log(const LogSpecs& specs)
 
 Log::~Log()
 {
-    m_Queue.ShutDownReaders();
+    m_Queue.ShutDown();
     m_LogWriter.join();
     
     if (m_Output)

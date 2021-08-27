@@ -34,10 +34,9 @@ public:
 
     void Write(const char *in, uint16_t size);
     void Write(std::istream& in_stream, uint16_t size);
-
-    bool isAlive() const;
-    bool isOpen() const;
     
+    bool isAlive() const;
+
 
     bool isReadAvailable() const;
     bool isWriteAvailable() const;
@@ -48,6 +47,7 @@ public:
 
     void ShutDownReaders();
     void ShutDownWriters();
+    void ShutDown();
 
 private:
     void ReadDecorator(std::function<void(void)> read_impl);
@@ -59,25 +59,21 @@ private:
         char Buffer[msg_size];
     };
 
+    const size_t m_QueueSize;
     std::vector<Message> m_Messages;
+
     typename std::vector<Message>::const_iterator m_Reader;
     typename std::vector<Message>::iterator       m_Writer;
 
-    size_t m_QueueSize;
 
-    mutable std::mutex m_ReaderMutex;
+    std::mutex m_ReaderMutex;
     std::condition_variable m_ReadCV;
-
-
-    std::atomic_flag m_WriteFlag = ATOMIC_FLAG_INIT;
-    
-    spinlock spinlock_r;
     spinlock writer_spinlock;
   
     std::atomic<size_t> m_num_of_waiting_readers = 0;
     std::atomic<size_t> messages_available_for_reading = 0;
 
-    bool m_Terminate = false;
+    bool m_Alive = true;
     bool m_ShutDownReaders = false;
     bool m_ShutDownWriters = false;
 };
@@ -86,14 +82,9 @@ private:
 template <size_t msg_size, size_t polling_micros>
 bool LogQueue<msg_size, polling_micros>::isAlive() const
 { 
-    return !m_Terminate;
+    return m_Alive;
 }
 
-template <size_t msg_size, size_t polling_micros>
-bool LogQueue<msg_size, polling_micros>::isOpen() const
-{
-    return !m_ShutDownReaders;
-}
 
 template <size_t msg_size, size_t polling_micros>
 void LogQueue<msg_size, polling_micros>::ShutDownReaders() 
@@ -112,6 +103,16 @@ template <size_t msg_size, size_t polling_micros>
 void LogQueue<msg_size, polling_micros>::ShutDownWriters() 
 { 
     m_ShutDownWriters = true;
+}
+
+
+template <size_t msg_size, size_t polling_micros>
+void LogQueue<msg_size, polling_micros>::ShutDown() 
+{ 
+    ShutDownWriters();
+    ShutDownReaders();
+
+    m_Alive = false;
 }
 
 
@@ -155,7 +156,7 @@ LogQueue<msg_size, polling_micros>::LogQueue(size_t queue_size)
 template <size_t msg_size, size_t polling_micros>
 LogQueue<msg_size, polling_micros>::~LogQueue()
 {
-    m_Terminate = true;
+    ShutDown();
     m_ReadCV.notify_all();
 }
 
@@ -163,23 +164,7 @@ LogQueue<msg_size, polling_micros>::~LogQueue()
 template <size_t msg_size, size_t polling_micros>
 void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)> read_impl)
 {
-    m_num_of_waiting_readers.fetch_add(1, std::memory_order_release);
-
-    // Wait
-    {
-        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
-
-        m_ReadCV.wait(lock_, [this]{ return isReadAvailable() || m_ShutDownReaders || m_Terminate; });
-
-        if (m_Terminate || m_ShutDownReaders)
-        {
-            m_num_of_waiting_readers.fetch_sub(1, std::memory_order_release);
-            return;
-        }
-    }
-
-    // Critical
-    {
+    auto critical_section_read = [this, &read_impl]{
         auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
 
         if (isReadAvailable())
@@ -192,11 +177,35 @@ void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)>
             read_impl();
             m_Reader = std::next(m_Reader);
 
-            messages_available_for_reading.fetch_sub(1, std::memory_order_release);
+            messages_available_for_reading.fetch_sub(1, std::memory_order_relaxed);
+        }
+    };
+
+    m_num_of_waiting_readers.fetch_add(1, std::memory_order_relaxed);
+
+    // Wait
+    {
+        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
+
+        m_ReadCV.wait(lock_, [this]{ return isReadAvailable() || m_ShutDownReaders; });
+
+        if (m_ShutDownReaders)
+        {
+            while(isReadAvailable())
+            {
+                critical_section_read(); // complete remaining reads before shutdown 
+            }
+
+            m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
+
+            return;
         }
     }
 
-    m_num_of_waiting_readers.fetch_sub(1, std::memory_order_release);
+    // Critical
+    critical_section_read();
+
+    m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
 }
 
 
@@ -247,10 +256,10 @@ void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)
 {
     for(;;) {
     // Wait until write available
-    while (!isWriteAvailable() || m_Terminate || m_ShutDownWriters)
+    while (!isWriteAvailable() || m_ShutDownWriters)
         std::this_thread::sleep_for(std::chrono::microseconds(polling_micros)); // spin
     
-    if (m_Terminate || m_ShutDownWriters)
+    if (m_ShutDownWriters)
     {
         return;
     }
@@ -266,7 +275,7 @@ void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)
         write_impl();
         m_Writer = std::next(m_Writer);
 
-        messages_available_for_reading.fetch_add(1, std::memory_order_release);
+        messages_available_for_reading.fetch_add(1, std::memory_order_relaxed);
         
         writer_spinlock.unlock();
         m_ReadCV.notify_one();
