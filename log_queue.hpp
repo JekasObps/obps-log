@@ -18,6 +18,9 @@ namespace obps
 template <size_t msg_size, size_t polling_micros>
 class LogQueue final
 {
+static_assert(msg_size > 0, "Message size must be greater than 0!");
+static_assert(msg_size <= 1024, "Max Message size is 1024 bytes!");
+
 public:
     static const size_t max_message_size = msg_size;
 
@@ -62,7 +65,7 @@ private:
 
     size_t m_QueueSize;
 
-    mutable std::mutex m_ReaderMutex, m_WriterMutex, m_EntryMutex;
+    mutable std::mutex m_ReaderMutex;
     std::condition_variable m_ReadCV;
 
 
@@ -71,15 +74,12 @@ private:
     spinlock spinlock_r;
     spinlock writer_spinlock;
   
-    size_t m_num_of_waiting_readers = 0;
-    size_t messages_available_for_reading = 0;
+    std::atomic<size_t> m_num_of_waiting_readers = 0;
+    std::atomic<size_t> messages_available_for_reading = 0;
 
     bool m_Terminate = false;
     bool m_ShutDownReaders = false;
     bool m_ShutDownWriters = false;
-
-    static_assert(msg_size > 0, "Message size must be greater than 0!");
-    static_assert(msg_size <= 1024, "Max Message size is 1024 bytes!");
 };
 
 
@@ -100,7 +100,7 @@ void LogQueue<msg_size, polling_micros>::ShutDownReaders()
 { 
     m_ShutDownReaders = true;
 
-    while(m_num_of_waiting_readers)
+    while(m_num_of_waiting_readers.load(std::memory_order_relaxed))
     {
         m_ReadCV.notify_all(); 
         std::this_thread::sleep_for(std::chrono::microseconds(10));
@@ -131,7 +131,7 @@ bool LogQueue<msg_size, polling_micros>::isWriteAvailable() const
 
 template <size_t msg_size, size_t polling_micros>
 size_t LogQueue<msg_size, polling_micros>::GetMessagesCount() const {
-    return messages_available_for_reading;
+    return messages_available_for_reading.load(std::memory_order_relaxed);
 }
 
 
@@ -163,12 +163,7 @@ LogQueue<msg_size, polling_micros>::~LogQueue()
 template <size_t msg_size, size_t polling_micros>
 void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)> read_impl)
 {
-    // [ENTRY SECTION]
-    {
-        auto lock_ = std::unique_lock<std::mutex>(m_EntryMutex);
-    
-        ++m_num_of_waiting_readers;
-    }
+    m_num_of_waiting_readers.fetch_add(1, std::memory_order_release);
 
     // Wait
     {
@@ -178,10 +173,7 @@ void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)>
 
         if (m_Terminate || m_ShutDownReaders)
         {
-            // LEAVE
-            auto lock_ = std::unique_lock<std::mutex>(m_EntryMutex);
-            --m_num_of_waiting_readers;
-
+            m_num_of_waiting_readers.fetch_sub(1, std::memory_order_release);
             return;
         }
     }
@@ -200,18 +192,11 @@ void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)>
             read_impl();
             m_Reader = std::next(m_Reader);
 
-            {
-                auto lock_ = std::unique_lock<std::mutex>(m_WriterMutex);
-                --messages_available_for_reading;
-            }
+            messages_available_for_reading.fetch_sub(1, std::memory_order_release);
         }
     }
 
-    // LEAVE
-    {
-        auto lock_ = std::unique_lock<std::mutex>(m_EntryMutex);
-        --m_num_of_waiting_readers;
-    }
+    m_num_of_waiting_readers.fetch_sub(1, std::memory_order_release);
 }
 
 
@@ -281,10 +266,7 @@ void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)
         write_impl();
         m_Writer = std::next(m_Writer);
 
-        {
-            auto lock_ = std::unique_lock<std::mutex>(m_WriterMutex);
-            ++messages_available_for_reading;
-        }
+        messages_available_for_reading.fetch_add(1, std::memory_order_release);
         
         writer_spinlock.unlock();
         m_ReadCV.notify_one();
