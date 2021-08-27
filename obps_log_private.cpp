@@ -169,7 +169,7 @@ Log::Log(const LogSpecs& specs)
 
 Log::~Log()
 {
-    m_Queue.Close();
+    m_Queue.ShutDownReaders();
     m_LogWriter.join();
     
     if (m_Output)

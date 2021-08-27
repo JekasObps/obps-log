@@ -2,116 +2,284 @@
 #include <thread>
 #include <chrono>
 
-#include "obps_log.hpp"
+#include <map>
+#include <unordered_map>
+
+#include <cstdlib>
+#include <atomic>
+
+#include <gtest/gtest.h>
+
 #include "log_queue.hpp"
 
-////////////////////////////// test driver /////////////////////////////////////
 using namespace obps;
+using LogQueue__ = LogQueue<64, 500>;
 
-bool create_queue()
-{
-    // LogQueue<0> queue(0); // forbidden, static_assert
-    // LogQueue<1> queue(0); // forbidden, assert
-    LogQueue<1, 500> queue(1);    // minimal size queue case
 
-    return true;
+#ifdef DEBUG_MODE
+TEST(LogQueueDeathTest, Create) {
+    EXPECT_DEATH({
+        LogQueue__ queue(0);
+    }, "^Assertion failed: queue_size > 0"); // forbidden, assert
 }
+#endif
 
-bool single_read_write()
-{
-    LogQueue<1, 0> queue(1);
+#define MSG_1 "Hello There!"
 
-    char msg, result;
 
-    msg = 'A';
+class LogQueueTest: public testing::Test {
+protected:
+    LogQueueTest()
+      : smallest_queue(1), queue(64) {}
 
-    queue.Write(&msg, 1);
-    queue.Read(&result);
-
-    return !strncmp(&msg, &result, 1);
-}
-
-bool write_to_file()
-{
-    std::thread reader;
-
-    LogQueue<16, 0> queue(10);
-    const char *msg[3] = {"ABCabcXYZxyz000_", "000111222333444_", "!@#$%^&*_!@#$%^_"};
-    
-    reader = std::thread { 
-        [&queue]{ 
-        std::ofstream out("test.log");
-        while (queue.isOpen() || queue.isReadAvailable())
-        {
-            queue.ReadToFile(out); out << std::endl;
-        }
-    }};
-
-    for(int i = 0; i < 100; ++i)
-        for (auto m : msg) queue.Write(m, 16); 
-
-    queue.Close();
-
-    reader.join();
-    return true;
-}
-
-bool test_queue()
-{
-    LogQueue<256, 0> queue(10000);
-
-    char in[256], out[256];
-
-    std::thread t1([&](){
-        for (int i = 0; i < 10; ++i)
-        {
-            queue.Read(out);
-            std::cerr << out << '\n';
-        }
-    });
-
-    std::thread t2([&](){
-        for (int i = 0; i < 10; ++i)
-        {
-            int b = sprintf(in, " t2 no: %d ", i);
-            std::memset(in + b, 'B', 256 - b); in[255] = 0;
-            queue.Write(in, 256);
-            std::this_thread::yield();
-        }
-    });
-
-    for (int i = 0; i < 10; ++i)
-    {
-        int b = sprintf(in, " t1 no: %d ", i);
-        std::memset(in + b, 'A', 256 - b); in[255] = 0;
-        queue.Write(in, 256);
-        std::this_thread::yield();
+    void SetUp() override {
     }
 
-    t2.join();
-    t1.join();
-    return true;
-}
+    LogQueue__ smallest_queue;
+    LogQueue__ queue;
 
-struct test_data 
-{
-    const char* name; 
-    bool(*func)(); 
+    char buffer[LogQueue__::max_message_size] = {0};
+    static const size_t message_len = sizeof(MSG_1);
+    const char message[message_len] = MSG_1;
 };
 
-#define TEST(f) test_data{#f, f}
 
-int main()
-{
-    for ( auto [name, func] : { 
-        TEST(create_queue),  
-        TEST(single_read_write),
-        TEST(write_to_file),
-        TEST(test_queue)
-    }) 
+TEST_F(LogQueueTest, CreateQueueOfSize1) {
+    EXPECT_EQ(smallest_queue.GetSize(), 1);    
+}
+
+
+TEST_F(LogQueueTest, SingleReadWrite) {
+    queue.Write(message, message_len);
+    EXPECT_EQ(queue.GetMessagesCount(), 1)
+        << "Message count expected to be increased after Write(...).";
+
+    size_t msize = queue.Read(buffer);
+    EXPECT_EQ(msize, message_len) 
+        << "Message size reported from Read(...) must be equal to an actual message size!";
+    EXPECT_EQ(queue.GetMessagesCount(), 0)
+        << "Message count expected to descend after Read(...).";
+
+    EXPECT_EQ(std::strncmp(message, buffer, message_len), 0) 
+        << "Message was changed after fetching from queue! expected: \"" 
+        << message << "\" result: \"" << buffer << "\"";
+}
+
+
+TEST_F(LogQueueTest, WriteAndReadToStream) {
+    std::stringstream in_stream, out_stream;
+    in_stream << message;
+
+    queue.Write(in_stream, message_len);
+    EXPECT_EQ(queue.GetMessagesCount(), 1)
+        << "Message count expected to be increased after Write(...).";
+
+    size_t msize = queue.ReadToFile(out_stream);
+    EXPECT_EQ(msize, message_len) 
+        << "Message size reported from Read(...) must be equal to an actual message size!";
+    EXPECT_EQ(queue.GetMessagesCount(), 0)
+        << "Message count expected to descend after Read(...).";
+
+    out_stream.read(buffer, message_len);
+
+    EXPECT_EQ(std::strncmp(buffer, message, message_len), 0) 
+        << "Message was changed after fetching from queue! expected: \"" 
+        << message << "\" result: \"" << buffer << "\"";
+}
+
+
+TEST_F(LogQueueTest, TestFullandEmpty) {
+    EXPECT_FALSE(smallest_queue.isReadAvailable());
+    EXPECT_TRUE(smallest_queue.isWriteAvailable());
+
+    smallest_queue.Write(message, message_len);
+
+    EXPECT_TRUE(smallest_queue.isReadAvailable());
+    EXPECT_FALSE(smallest_queue.isWriteAvailable());
+}
+
+
+TEST_F(LogQueueTest, TestIsAlive) {
+    EXPECT_TRUE(queue.isAlive());
+    queue.~LogQueue__();
+    EXPECT_FALSE(queue.isAlive());
+}
+
+
+TEST_F(LogQueueTest, TestShutDownReaders) {
+    EXPECT_TRUE(queue.isOpen());
+    queue.ShutDownReaders();
+    EXPECT_FALSE(queue.isOpen());
+}
+
+
+TEST_F(LogQueueTest, TestAvailable) {
+    for(int i=0; i < queue.GetSize(); ++i)
     {
-        std::cerr << name;
-        (!func()) ? std::cerr <<  ":: FAILED! " : std::cerr << ":: PASSED! ";
-        std::cerr << std::endl;
+        queue.Write(message, message_len);
+        EXPECT_TRUE(queue.isReadAvailable());
+    }
+    
+    EXPECT_FALSE(queue.isWriteAvailable());
+
+    for(int i=0; i < queue.GetSize(); ++i)
+    {
+        EXPECT_TRUE(queue.isReadAvailable());
+        queue.Read(buffer);
+        EXPECT_TRUE(queue.isWriteAvailable());
+    }
+
+    EXPECT_FALSE(queue.isReadAvailable());
+}
+
+
+TEST_F(LogQueueTest, TestAvailable2) {
+    for(int i=0; i < queue.GetSize() * 3; ++i)
+    {
+        queue.Write(message, message_len);
+        EXPECT_TRUE(queue.isReadAvailable());
+        EXPECT_TRUE(queue.isWriteAvailable());
+        queue.Read(buffer);
+        EXPECT_FALSE(queue.isReadAvailable());
+        EXPECT_TRUE(queue.isWriteAvailable());
+    }
+}
+
+
+class MultiThreadTest : public testing::Test {
+public:
+    using thread_fun = void (MultiThreadTest::* )(LogQueue__ &);
+
+    void writer(LogQueue__ & queue)
+    {
+        std::stringstream stream;
+        stream << std::this_thread::get_id();
+        std::string s;
+        stream >> s;
+
+        for(int j = 0; j < amount_of_messages_each_writer_sends; ++j)
+        {
+            queue.Write(s.c_str(), s.size()+1);
+        }
+    };
+
+
+    void reader(LogQueue__ & queue)
+    { 
+        while(reader_global_count < reader_target)
+        {
+            queue.ReadTo([this](const char* msg, uint16_t size) {
+                ++map[msg];
+                ++reader_global_count; // protected by m_ReaderMutex
+            });
+        }
+    };
+
+protected:
+    MultiThreadTest() : queue(100), big_queue(1000) {}
+    
+    void SetUp() override {
+        //...
+    }
+
+    LogQueue__ queue, big_queue;
+
+    void LaunchWriters(thread_fun f, LogQueue__ &queue)
+    {
+        for(int i=0; i < num_of_writers; ++i)
+        { 
+            writers.emplace_back(f, this, std::ref(queue));
+        }
+    }
+
+    void LaunchReaders(thread_fun f, LogQueue__ &queue)
+    {
+        for(int i=0; i < num_of_readers; ++i)
+        {
+            readers.emplace_back(f, this, std::ref(queue));
+        }
+    }
+
+    void JoinWriters()
+    {
+        for(auto&& writer : writers)
+        {
+            writer.join();
+        }
+    }
+
+    void JoinReaders()
+    {
+        for(auto&& reader : readers)
+        {
+            reader.join();
+        }
+    }
+
+    std::atomic_flag run_flag = ATOMIC_FLAG_INIT;
+    size_t num_of_writers = 100;
+    size_t num_of_readers = num_of_writers / 4;
+    size_t amount_of_messages_each_writer_sends = 10;
+    size_t reader_target = num_of_writers * amount_of_messages_each_writer_sends;
+    size_t reader_global_count = 0;
+
+    std::vector<std::thread> readers;
+    std::vector<std::thread> writers;
+    std::map<std::string, size_t> map;
+};
+
+/* Single reader and many writers test
+*/
+TEST_F(MultiThreadTest, WritersTest) {
+
+    LaunchWriters(&MultiThreadTest::writer,  big_queue);
+    JoinWriters();
+
+    EXPECT_EQ(big_queue.GetMessagesCount(), reader_target);
+
+    big_queue.ShutDownWriters();
+
+    std::map<std::string, size_t> map;
+
+    for(int i=0; i < reader_target; ++i)
+    {
+        std::stringstream ss;
+        big_queue.ReadTo([&ss](const char *msg, uint16_t size){  ss.write(msg, size);  });
+        
+        std::string s;
+        ss >> s;
+        ++map[s];
+    }
+
+    for (auto && [writer_id, amount] : map)
+    {
+        EXPECT_EQ(amount, amount_of_messages_each_writer_sends)
+            << "Messages get lost due to a race condition";
+    }
+}
+
+/* many readers, many writers test
+*/
+TEST_F(MultiThreadTest, ParallelTest) {
+    LaunchReaders(&MultiThreadTest::reader, queue);
+    LaunchWriters(&MultiThreadTest::writer, queue);
+
+    while(reader_global_count < reader_target)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    queue.ShutDownWriters();
+    queue.ShutDownReaders();
+
+    JoinReaders();
+    JoinWriters();
+
+    EXPECT_EQ(map.size(), num_of_writers) 
+        << "Map must contain only " << num_of_writers << " keys which are writers' tids.\r\n"
+        << ((map.size() > num_of_writers)? "map size greater than a num of writers. Which could mean that messages' integrity was compromised!" : "");
+
+    for (auto && [writer_id, amount] : map)
+    {
+        EXPECT_EQ(amount, amount_of_messages_each_writer_sends)
+            << "Messages get lost due to a race condition";
     }
 }

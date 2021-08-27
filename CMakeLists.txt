@@ -99,5 +99,13 @@ if (MAIN_PROJECT)
         PASS_REGULAR_EXPRESSION "^?" # nothing gonna be printed, Logging is off!
     )
 
+    add_executable(test_log_queue log_queue_test.cpp)
+    set_target_properties(test_log_queue PROPERTIES CXX_STANDARD 20)
+    target_link_libraries(test_log_queue PRIVATE obps_log
+                                         PRIVATE gtest_main)
+
+    # add_test( NAME test_log_queue COMMAND test_log_queue )
+    include(GoogleTest)
+    gtest_discover_tests(test_log_queue)
 
 endif()
