@@ -73,9 +73,23 @@ void Log::SendToQueue(const std::string& message)
     m_Queue.Write(message.c_str(), static_cast<uint16_t>(message.size()));
 }
 
+
+void ExitHandler()
+{
+    // prevent thread to exit sponateously on main::return
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
 void Log::WriterFunction() 
 try 
 {
+    const auto result = std::atexit(ExitHandler);
+    if (result != 0)
+    {
+        std::cerr << "Failed to register exit handler! at " << __FILE__ <<  "::" << __LINE__ << std::endl;
+        std::terminate();
+    }
+    
     while (m_Queue.isAlive())
     {
         m_Queue.ReadTo([this](const char *msg, uint16_t size){
@@ -170,8 +184,10 @@ Log::Log(const LogSpecs& specs)
 Log::~Log()
 {
     m_Queue.ShutDown();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     m_LogWriter.join();
-    
     if (m_Output)
         m_Output->flush();
 }
