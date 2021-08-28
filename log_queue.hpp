@@ -15,7 +15,7 @@
 namespace obps
 {
 
-template <size_t msg_size, size_t polling_micros>
+template <size_t msg_size>
 class LogQueue final
 {
 static_assert(msg_size > 0, "Message size must be greater than 0!");
@@ -79,15 +79,15 @@ private:
 };
 
 
-template <size_t msg_size, size_t polling_micros>
-bool LogQueue<msg_size, polling_micros>::isAlive() const
+template <size_t msg_size>
+bool LogQueue<msg_size>::isAlive() const
 { 
     return m_Alive;
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::ShutDownReaders() 
+template <size_t msg_size>
+void LogQueue<msg_size>::ShutDownReaders() 
 { 
     m_ShutDownReaders = true;
 
@@ -99,15 +99,15 @@ void LogQueue<msg_size, polling_micros>::ShutDownReaders()
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::ShutDownWriters() 
+template <size_t msg_size>
+void LogQueue<msg_size>::ShutDownWriters() 
 { 
     m_ShutDownWriters = true;
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::ShutDown() 
+template <size_t msg_size>
+void LogQueue<msg_size>::ShutDown() 
 { 
     ShutDownWriters();
     ShutDownReaders();
@@ -116,34 +116,34 @@ void LogQueue<msg_size, polling_micros>::ShutDown()
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-bool LogQueue<msg_size, polling_micros>::isReadAvailable() const 
+template <size_t msg_size>
+bool LogQueue<msg_size>::isReadAvailable() const 
 {
     return GetMessagesCount() > 0; 
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-bool LogQueue<msg_size, polling_micros>::isWriteAvailable() const
+template <size_t msg_size>
+bool LogQueue<msg_size>::isWriteAvailable() const
 {
     return GetMessagesCount() < m_QueueSize;
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-size_t LogQueue<msg_size, polling_micros>::GetMessagesCount() const {
+template <size_t msg_size>
+size_t LogQueue<msg_size>::GetMessagesCount() const {
     return messages_available_for_reading.load(std::memory_order_relaxed);
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-size_t LogQueue<msg_size, polling_micros>::GetSize() const {
+template <size_t msg_size>
+size_t LogQueue<msg_size>::GetSize() const {
     return m_QueueSize;
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-LogQueue<msg_size, polling_micros>::LogQueue(size_t queue_size)
+template <size_t msg_size>
+LogQueue<msg_size>::LogQueue(size_t queue_size)
   : m_QueueSize(queue_size)
   , m_Messages(queue_size)
   , m_Reader(m_Messages.cbegin())
@@ -153,16 +153,16 @@ LogQueue<msg_size, polling_micros>::LogQueue(size_t queue_size)
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-LogQueue<msg_size, polling_micros>::~LogQueue()
+template <size_t msg_size>
+LogQueue<msg_size>::~LogQueue()
 {
     ShutDown();
     m_ReadCV.notify_all();
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)> read_impl)
+template <size_t msg_size>
+void LogQueue<msg_size>::ReadDecorator(std::function<void(void)> read_impl)
 {
     auto critical_section_read = [this, &read_impl]{
         auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
@@ -209,8 +209,8 @@ void LogQueue<msg_size, polling_micros>::ReadDecorator(std::function<void(void)>
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-uint16_t LogQueue<msg_size, polling_micros>::Read(char *out)
+template <size_t msg_size>
+uint16_t LogQueue<msg_size>::Read(char *out)
 {
     uint16_t size;
     
@@ -223,8 +223,8 @@ uint16_t LogQueue<msg_size, polling_micros>::Read(char *out)
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-uint16_t LogQueue<msg_size, polling_micros>::ReadToFile(std::ostream& dest)
+template <size_t msg_size>
+uint16_t LogQueue<msg_size>::ReadToFile(std::ostream& dest)
 {
     uint16_t size;
 
@@ -237,8 +237,8 @@ uint16_t LogQueue<msg_size, polling_micros>::ReadToFile(std::ostream& dest)
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-uint16_t LogQueue<msg_size, polling_micros>::ReadTo(std::function<void(const char *msg, uint16_t size)> f)
+template <size_t msg_size>
+uint16_t LogQueue<msg_size>::ReadTo(std::function<void(const char *msg, uint16_t size)> f)
 {
     uint16_t size;
 
@@ -251,20 +251,20 @@ uint16_t LogQueue<msg_size, polling_micros>::ReadTo(std::function<void(const cha
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)> write_impl)
+template <size_t msg_size>
+void LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
 {
     for(;;) {
+
     // Wait until write available
-    while (!isWriteAvailable() || m_ShutDownWriters)
-        std::this_thread::sleep_for(std::chrono::microseconds(polling_micros)); // spin
+    writer_spinlock.lock([this]{ return isWriteAvailable() || m_ShutDownWriters; });
     
     if (m_ShutDownWriters)
-    {
+    {   
+        writer_spinlock.unlock();
         return;
     }
 
-    writer_spinlock.lock();
     if (isWriteAvailable())
     {
         if (m_Writer == m_Messages.end())
@@ -291,8 +291,8 @@ void LogQueue<msg_size, polling_micros>::WriteDecorator(std::function<void(void)
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::Write(const char *in, uint16_t size)
+template <size_t msg_size>
+void LogQueue<msg_size>::Write(const char *in, uint16_t size)
 {
     WriteDecorator([this, &in, &size](){
         std::memcpy(m_Writer->Buffer, in, size);
@@ -301,8 +301,8 @@ void LogQueue<msg_size, polling_micros>::Write(const char *in, uint16_t size)
 }
 
 
-template <size_t msg_size, size_t polling_micros>
-void LogQueue<msg_size, polling_micros>::Write(std::istream& in_stream, uint16_t size)
+template <size_t msg_size>
+void LogQueue<msg_size>::Write(std::istream& in_stream, uint16_t size)
 {
     WriteDecorator([this, &in_stream, &size](){
         in_stream.read(m_Writer->Buffer, size);

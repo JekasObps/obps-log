@@ -164,7 +164,7 @@ private:
 
     std::unique_ptr<std::ostream> m_Output;
     LogLevel m_Level;
-    LogQueue<MAX_MSG_SIZE, POLLING_MICROS_DELAY> m_Queue;
+    LogQueue<MAX_MSG_SIZE> m_Queue;
     std::thread m_LogWriter;
     std::exception_ptr m_WriterException;
     Formatter m_Format;

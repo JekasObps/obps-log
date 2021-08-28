@@ -13,7 +13,7 @@
 #include "log_queue.hpp"
 
 using namespace obps;
-using LogQueue__ = LogQueue<64, 500>;
+using LogQueue__ = LogQueue<64>;
 
 
 #ifdef DEBUG_MODE

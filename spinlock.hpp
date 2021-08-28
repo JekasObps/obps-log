@@ -2,15 +2,23 @@
 
 #include <atomic>
 #include <thread>
+#include <concepts>
 
 struct spinlock {
     std::atomic<bool> lock_ = {0};
 
-    void lock() noexcept {
+    template <std::predicate P>
+    void lock(P pred) noexcept {
         for (;;) {
         // Optimistically assume the lock is free on the first try
-        if (!lock_.exchange(true, std::memory_order_acquire)) {
-            return;
+        if (pred() && !lock_.exchange(true, std::memory_order_acquire)) {
+            if (pred()) {
+                return;
+            }
+            else {
+                unlock();
+                // continue spinning
+            }
         }
         // Wait for lock to be released without generating cache misses
         while (lock_.load(std::memory_order_relaxed)) {
