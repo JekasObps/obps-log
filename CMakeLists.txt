@@ -17,11 +17,9 @@ if (WIN32)
 elseif (UNIX AND NOT APPLE)
     message("OS: LINUX")
     add_definitions(-DLINUX)
-    set(LINUX True)	
+    set(LINUX True)
 endif()
 
-# sourcing configuration
-include(${CMAKE_CURRENT_SOURCE_DIR}/Conf.cmake)
 
 # checking build type and setting appropriate flags
 if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
@@ -33,6 +31,12 @@ elseif (${CMAKE_BUILD_TYPE} STREQUAL Release)
     add_definitions(-DNDEBUG)
 endif()
 
+
+# sourcing configuration
+include(${CMAKE_CURRENT_SOURCE_DIR}/Conf.cmake)
+
+# setting up log levels
+include(${CMAKE_CURRENT_SOURCE_DIR}/SetLogLevels.cmake)
 
 # Logger configuration header
 configure_file(ObpsLogConfig.hpp.in ${ObpsLog_SOURCE_DIR}/ObpsLogConfig.hpp)

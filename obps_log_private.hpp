@@ -16,22 +16,23 @@ namespace obps
 
 using namespace std::chrono_literals;
 
-enum class LogLevel
-{ 
-    ERROR,
-    WARN,
-    INFO,
-    DEBUG 
-};
+enum class LogLevel {OBPS_LOG_LEVELS};
+// { 
+//     ERROR,
+//     WARN,
+//     INFO,
+//     DEBUG 
+// };
 
 constexpr auto PrettyLevel(const LogLevel level)
 {
     switch (level)
     {
-        case LogLevel::ERROR: return "ERROR";
-        case LogLevel::WARN:  return "WARN";
-        case LogLevel::INFO:  return "INFO";
-        case LogLevel::DEBUG: return "DEBUG";
+        // case LogLevel::ERROR: return "ERROR";
+        // case LogLevel::WARN:  return "WARN";
+        // case LogLevel::INFO:  return "INFO";
+        // case LogLevel::DEBUG: return "DEBUG";
+        OBPS_LOG_PRETTY_LEVELS; // !important semi-column
         default: 
             return "UnknownLevel";
     }

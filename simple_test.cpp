@@ -3,9 +3,9 @@
 // simple test to check enabling and disabling logging 
 void test1()
 {
-    MakeScopeLog({std::cout, obps::LogLevel::INFO});
+    SCOPE_LOG(INFO, std::cout);
 
-    Info("Pass");
+    CHUKKA("Pass"); // bug! programm never ends if no target catches message.
 }
 
 int main()
