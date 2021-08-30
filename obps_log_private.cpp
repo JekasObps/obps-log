@@ -69,14 +69,12 @@ void Log::WriteForward(LogLevel level, const std::string& message)
 
 void Log::SendToQueue(const std::string& message)
 {
-    assert(message.size() < 65535);
+    assert(message.size() < m_Queue.max_message_size);
     m_Queue.Write(message.c_str(), static_cast<uint16_t>(message.size()));
 }
 
-
 void ExitHandler()
 {
-    std::atomic_signal_fence(std::memory_order_acquire);
     // prevent thread to exit sponateously on main::return
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }

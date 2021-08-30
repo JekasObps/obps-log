@@ -20,9 +20,13 @@ class LogQueue final
 {
 static_assert(msg_size > 0, "Message size must be greater than 0!");
 static_assert(msg_size <= 1024, "Max Message size is 1024 bytes!");
+static_assert(msg_size % sizeof(size_t) == 0, "message must be aligned to word size");
 
 public:
-    static const size_t max_message_size = msg_size;
+    typedef uint16_t MessageSize_t;
+
+    static constexpr size_t max_message_size = msg_size;
+    static constexpr size_t MessageSize_typesize = sizeof(MessageSize_t);
 
 public:
     explicit LogQueue(size_t queue_size);
@@ -55,7 +59,7 @@ private:
 
     struct Message
     {
-        uint16_t Size;
+        MessageSize_t Size;
         char Buffer[msg_size];
     };
 
