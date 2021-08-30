@@ -76,6 +76,7 @@ void Log::SendToQueue(const std::string& message)
 
 void ExitHandler()
 {
+    std::atomic_signal_fence(std::memory_order_acquire);
     // prevent thread to exit sponateously on main::return
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }

@@ -20,7 +20,7 @@ foreach(level ${__LOG_LEVELS})
         list(APPEND OBPS_LOG_MACROS__ "#else" "#define DEBUG(...)" "#endif // DEBUG_MODE")
     endif()
         
-    list(APPEND OBPS_LOG_MACROS_OFF__ "#define ${level}(...);" )
+    list(APPEND OBPS_LOG_MACROS_OFF__ "#define ${level}(...) {}" )
 endforeach()
 
 string(REPLACE ";" "\n" OBPS_LOG_MACROS__ "${OBPS_LOG_MACROS__}")

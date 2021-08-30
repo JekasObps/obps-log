@@ -8,6 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <atomic>
 
 #include "log_queue.hpp"
 
@@ -17,22 +18,13 @@ namespace obps
 using namespace std::chrono_literals;
 
 enum class LogLevel {OBPS_LOG_LEVELS};
-// { 
-//     ERROR,
-//     WARN,
-//     INFO,
-//     DEBUG 
-// };
-
 constexpr auto PrettyLevel(const LogLevel level)
 {
     switch (level)
     {
-        // case LogLevel::ERROR: return "ERROR";
-        // case LogLevel::WARN:  return "WARN";
-        // case LogLevel::INFO:  return "INFO";
-        // case LogLevel::DEBUG: return "DEBUG";
         OBPS_LOG_PRETTY_LEVELS; // !important semi-column
+        // generates: 
+        //    case LogLevel::<UserDefinedLevel>: return "<UserDefinedLevel>";
         default: 
             return "UnknownLevel";
     }
@@ -55,11 +47,7 @@ public:
 
     struct LogSpecs
     {
-        enum TargetType 
-        {
-            FILENAME, 
-            STREAM
-        };
+        enum TargetType {FILENAME, STREAM};
         
         struct FilenameOrStream
         {
@@ -120,6 +108,7 @@ public:
         LogExceptHandler _Handler  = nullptr;
         size_t           _QSize    = DEFAULT_QUEUE_SIZE;
         Log*             _Attached = nullptr;
+
     };
     
     Log& Attach(Log& other_log);
@@ -187,15 +176,12 @@ void Log::WriteForward(LogLevel level, Args ...args)
     {
         std::string message = BuildMessage(level, args...);
         SendToQueue(message);
-
-        if (HasAttachedLog())
-            m_AttachedLog->WriteForward(level, message);
-
-        return;
     }
 
     if (HasAttachedLog())
+    {
         m_AttachedLog->WriteForward(level, args...);
+    }
 }
 
 template <typename ...Args>
