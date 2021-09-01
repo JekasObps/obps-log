@@ -15,7 +15,7 @@ set(OBPS_LOG_LEVELS
     ERROR
     WARN
     INFO
-    CHUKKA # test - target
+    USER_LEVEL
     DEBUG
 )
 

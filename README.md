@@ -31,3 +31,33 @@ GLOBAL_LOG
 
 Log messages in thread   
 
+
+
+New scheme that concludes that thread pool is neccesery:
+
+## //// main.c ////
+``` c++
+
+void thread_foo()
+{
+    SCOPE_LOG() // -> static __scope_log
+    
+    // scopelog does not finilize threads on static storage cleanup!
+}
+
+void main()
+{
+
+    OBPS_LOG_DESTROY(); //-> finalize threads in global thread pool 
+}
+```
+
+### Alternative option:
+``` c++
+void main() FINALIZE_LOG(
+{
+    // your code...
+} 
+[, return statement])
+
+```

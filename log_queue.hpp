@@ -39,18 +39,14 @@ public:
     void Write(const char *in, uint16_t size);
     void Write(std::istream& in_stream, uint16_t size);
     
-    bool isAlive() const;
-
-
-    bool isReadAvailable() const;
-    bool isWriteAvailable() const;
-
-    size_t GetMessagesCount() const;
-
-    size_t GetSize() const;
+    bool isAlive() const noexcept;
+    bool isReadAvailable() const noexcept;
+    bool isWriteAvailable() const noexcept;
+    size_t GetMessagesCount() const noexcept;
+    size_t GetSize() const noexcept;
 
     void ShutDownReaders();
-    void ShutDownWriters();
+    void ShutDownWriters() noexcept;
     void ShutDown();
 
 private:
@@ -84,7 +80,7 @@ private:
 
 
 template <size_t msg_size>
-bool LogQueue<msg_size>::isAlive() const
+bool LogQueue<msg_size>::isAlive() const noexcept
 { 
     return m_Alive;
 }
@@ -104,7 +100,7 @@ void LogQueue<msg_size>::ShutDownReaders()
 
 
 template <size_t msg_size>
-void LogQueue<msg_size>::ShutDownWriters() 
+void LogQueue<msg_size>::ShutDownWriters() noexcept
 { 
     m_ShutDownWriters = true;
 }
@@ -121,27 +117,29 @@ void LogQueue<msg_size>::ShutDown()
 
 
 template <size_t msg_size>
-bool LogQueue<msg_size>::isReadAvailable() const 
+bool LogQueue<msg_size>::isReadAvailable() const noexcept
 {
     return GetMessagesCount() > 0; 
 }
 
 
 template <size_t msg_size>
-bool LogQueue<msg_size>::isWriteAvailable() const
+bool LogQueue<msg_size>::isWriteAvailable() const noexcept
 {
     return GetMessagesCount() < m_QueueSize;
 }
 
 
 template <size_t msg_size>
-size_t LogQueue<msg_size>::GetMessagesCount() const {
+size_t LogQueue<msg_size>::GetMessagesCount() const noexcept 
+{
     return messages_available_for_reading.load(std::memory_order_relaxed);
 }
 
 
 template <size_t msg_size>
-size_t LogQueue<msg_size>::GetSize() const {
+size_t LogQueue<msg_size>::GetSize() const noexcept
+{
     return m_QueueSize;
 }
 
