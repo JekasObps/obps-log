@@ -1,9 +1,11 @@
 #pragma once
 
 #include <iostream>
+#include <set>
 
 #include "ObpsLogConfig.hpp"
 #include "thread_pool.hpp"
+#include "log_queue.hpp"
 
 
 #if defined(WIN32)
@@ -34,121 +36,104 @@ class LogBase
 protected:
     struct MessageData
     {
-        const std::string&  Content;
-        const std::string&  DateFmt;
-        const std::string&  PrettyLevel;
-        std::thread::id     Tid;
+        const std::time_t       TimeStamp;
+        const LogLevel          Level;
+        const std::thread::id   Tid;
+        const char              Text[1]; // flex array
     };
 
+    LogBase(){}
+    ~LogBase(){}
 public:
+    enum class LoggerThreadStatus_ 
+    {
+        RUNNING,    // logger thread hasn't finished yet
+        FINISHED,   // logger thread has finished
+        ABORTED     // logger thread has aborted
+    };
+
     using FormatSignature = void (std::ostream&, MessageData);
     using Formatter = std::function<FormatSignature>;
     
     static FormatSignature default_format;
     static FormatSignature JSON_format;
 
-    
+    static std::unique_ptr<std::ostream> OpenFileStream(const std::string& logname);
+    static std::string MakeLogFileName(const std::string& prefix_name);
+    static std::string GetTimeStr(const std::string& fmt);
 
-    static std::string GetTimeStr(const std::string& fmt)
-    {
-        const auto date = std::chrono::system_clock::now();
-        const std::time_t t_c = std::chrono::system_clock::to_time_t(date);
-        tm date_info;
-
-        __localtime(&date_info, &t_c);
-        
-        char timestr_buffer[128];
-        strftime(timestr_buffer, 128, fmt.c_str(), &date_info);
-
-        return timestr_buffer;
-    }
-
-    static std::string MakeLogFileName(const std::string& prefix_name)
-    {
-        return prefix_name + "-" + GetTimeStr("%F") + ".log";
-    }
-
-    enum class LoggerThreadStatus_ {RUNNING, FINISHED, FAILED};
-    
-    using LogPool = ThreadPool<LoggerThreadStatus_, std::exception, LoggerThreadStatus_::FINISHED, LoggerThreadStatus_::FAILED>;
+    using LogPool = ThreadPool<LoggerThreadStatus_, LoggerThreadStatus_::RUNNING, LoggerThreadStatus_::FINISHED, LoggerThreadStatus_::ABORTED>;
     using LogPoolSptr = std::shared_ptr<LogPool>;
-
-protected:
     using LogExceptHandler = std::function<void(std::exception& e)>;
 
+    using LogQueueSptr = std::shared_ptr<LogQueue<DEFAULT_QUEUE_SIZE>>;
 
+    LogBase(const LogBase&) = delete;
+    LogBase& operator=(const LogBase&) = delete;
+    LogBase(LogBase&&) = delete;
+    LogBase& operator=(LogBase&&) = delete;
+    
     struct LogSpecs
     {
-        enum TargetType {FILENAME, STREAM};
-        
+        enum class OutputType {FILENAME, STREAM};
+        enum class OutputModifier {NONE, ISOLATED};
+
         struct FilenameOrStream
         {
-            FilenameOrStream(){}
+            FilenameOrStream()
+            {}
+
             FilenameOrStream(const char* filename)
-              : Type(TargetType::FILENAME) { Value.Filename = filename; }
+              : Type(OutputType::FILENAME) 
+            {
+                Value.Filename = filename; 
+            }
+
             FilenameOrStream(std::ostream& stream)
-              : Type(TargetType::STREAM) { Value.Stream = &stream; }
-              
+              : Type(OutputType::STREAM) 
+            {
+                Value.Stream = &stream; 
+            }
+            
+            // custom variant pattern
             union 
             {
                 const char*   Filename;
                 std::ostream* Stream;
             } Value;
 
-            TargetType Type;
+            OutputType Type;
         };
+
+        using OutputSpec = std::tuple<
+            LogLevel,                     // severity level of the output target 
+            OutputModifier,               // isolate specific level   
+            FilenameOrStream,             // output
+            LogQueueSptr,                 // specific queue
+            Formatter                     // corresponding formatter 
+        >;
         
-        LogSpecs& Target(FilenameOrStream target) 
-        { 
-            _Target = target;
-            return *this;
-        }
+        LogSpecs& Outputs(std::initializer_list<OutputSpec> l);
+        LogSpecs& ThreadPool(LogPoolSptr pool);
+        LogSpecs& DefaultQueue(LogQueueSptr queue);
 
-        LogSpecs& Level(LogLevel level)
-        {
-            _Level = level;
-            return *this;
-        }
+        LogPoolSptr _ThreadPool { LogPool::GetInstance() };
 
-        LogSpecs& Format(Formatter f)
-        {
-            _Format = f;
-            return *this;
-        }
+        LogQueueSptr _DefaultLogQueue {
+            std::make_shared<LogQueue<DEFAULT_QUEUE_SIZE>>()
+        };
 
-        LogSpecs& ExceptionHandler(LogExceptHandler h)
-        {
-            _Handler = h;
-            return *this;
-        }
-
-        LogSpecs& QueueSize(size_t size)
-        {
-            _QSize = size;
-            return *this;
-        } 
-        
-        LogSpecs& Attached(LogBase& log)
-        {
-            _Attached = &log;
-            return *this;
-        }
-
-        LogSpecs& ThreadPool(LogPoolSptr pool)
-        {
-            _ThreadPool = pool;
-            return *this;
-        }
-
-        FilenameOrStream _Target   = std::cout;
-        LogLevel         _Level    = LogLevel::WARN;
-        Formatter        _Format   = default_format;
-        LogExceptHandler _Handler  = nullptr;
-        size_t           _QSize    = DEFAULT_QUEUE_SIZE;
-        LogBase*         _Attached = nullptr;
-        LogPoolSptr     _ThreadPool = LogPool::GetInstance();
-
+        std::set<OutputSpec> _Outputs {
+            {
+                LogLevel::WARN, 
+                OutputModifier::NONE,
+                std::cout,
+                _DefaultLogQueue,
+                default_format
+            }
+        };
     }; // class LogSpecs
+
 }; // class LogBase
 
 

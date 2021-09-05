@@ -1,102 +1,54 @@
 #pragma once
 
-#include "ObpsLogConfig.hpp"
-
-#include <thread>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
-#include <atomic>
 
 
+#include "ObpsLogConfig.hpp"
 #include "log_base.hpp"
-#include "log_queue.hpp"
-#include "thread_pool.hpp"
-#include "log_scope_destroyer.hpp"
 
 namespace obps
 {
 
-using namespace std::chrono_literals;
-
 class Log final : public LogBase 
 {
 public:
-    using LogOnExcept = LoggerThreadStatus_ (const std::exception& e);
-    using LogThreadFunction = LoggerThreadStatus_ ();
-
-    Log& Attach(Log& other_log);
-
-    bool HasAttachedLog() const noexcept;
-
     template <typename ...Args>
     void Write(LogLevel level, Args ...args);
     
-
     explicit Log(const LogSpecs& specs);
     ~Log();
-    
 private:
-    explicit Log(std::unique_ptr<std::ostream> stream, 
-        LogLevel level, 
-        size_t queue_size, 
-        Formatter formatter, 
-        Log* attach, 
-        LogPoolSptr pool
-        );
-
-    Log(const Log&) = delete;
-    Log& operator=(const Log&) = delete;
-    Log(Log&&) = delete;
-    Log& operator=(Log&&) = delete;
-    
-    static std::unique_ptr<std::ostream> OpenFileStream(const std::string& logname);
-    bool IsRelevantLevel(LogLevel level) const noexcept;
-
-    template <typename ...Args>
-    void WriteForward(LogLevel level, Args ...args);
-
-    void WriteForward(LogLevel level, const std::string& message);
+    using LogThreadFunction = LoggerThreadStatus_ (std::ostream &output);
     
     void SendToQueue(const std::string& message);
 
     template <typename ...Args>
     std::string BuildMessage(LogLevel level, Args ...args); 
 
-    static LogOnExcept LogExceptHandler;
-    LogThreadFunction  LogThread;
+    LogThreadFunction LogThread;
 
-    std::unique_ptr<std::ostream> m_Output;
-    LogLevel m_Level;
-    LogQueue<MAX_MSG_SIZE> m_Queue;
+    using Output_ = std::tuple<
+        LogLevel,       // severity level of the output target 
+        LogSpecs::OutputModifier,
+        std::ostream,   // output stream
+        Formatter       // corresponding formatter 
+    >;
 
-    Formatter m_Format;
-
+    std::vector<Output_> m_Outputs;
+    
+    std::shared_ptr<LogQueue<MAX_MSG_SIZE>> m_Queue;
+    
     LogPoolSptr m_Pool;
-    Log* m_AttachedLog = nullptr;
 };
 
 template <typename ...Args>
 void Log::Write(LogLevel level, Args ...args)
 {
-    WriteForward(level, args...);
-}
-
-template <typename ...Args>
-void Log::WriteForward(LogLevel level, Args ...args)
-{
-    if (IsRelevantLevel(level))
-    {
-        std::string message = BuildMessage(level, args...);
-        SendToQueue(message);
-    }
-
-    if (HasAttachedLog())
-    {
-        m_AttachedLog->WriteForward(level, args...);
-    }
+    
 }
 
 template <typename ...Args>
