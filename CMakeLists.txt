@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_CXX_STANDARD 20)
 
-project(ObpsLog VERSION 0.2)
+project(ObpsLog VERSION 1.0)
 
 # Determine ObpsLog build as a standalone project
 set(MAIN_PROJECT OFF)

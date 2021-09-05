@@ -5,116 +5,29 @@ namespace obps
 
 template class LogBase::LogPool; // instantiate LogPool
 
+///////////////////
+//      Log      //
+///////////////////
 
-Log& Log::Attach(Log& other_log)
+
+void Log::SendToQueue()
 {
-    assert(&other_log != this && "prevent self attachment!!!");
-    
-    auto *next = this;
 
-    while (next->m_AttachedLog)
-    {
-        next = next->m_AttachedLog;
-    }
-
-    next->m_AttachedLog = &other_log;
-    
-    return other_log;
-}
-
-bool Log::HasAttachedLog() const noexcept
-{
-    return m_AttachedLog != nullptr;
-}
-
-std::unique_ptr<std::ostream> Log::OpenFileStream(const std::string& logname)
-{
-    auto file = std::make_unique<std::ofstream>(MakeLogFileName(logname), std::ios::app);
-    if (file->fail())
-    {
-        throw std::runtime_error("Failed To Open LogFile!");
-    }
-    return std::move(file);
-}
-
-bool Log::IsRelevantLevel(LogLevel level) const noexcept
-{
-    return m_Level >= level;
-}
-
-void Log::WriteForward(LogLevel level, const std::string& message)
-{
-    if (IsRelevantLevel(level))
-    {
-        SendToQueue(message);
-    }
-
-    if(HasAttachedLog())
-    {
-        m_AttachedLog->WriteForward(level, message);
-    }
-}
-
-void Log::SendToQueue(const std::string& message)
-{
-    assert(message.size() < m_Queue.max_message_size);
-    m_Queue.Write(message.c_str(), static_cast<uint16_t>(message.size()));
 }
 
 
-Log::LoggerThreadStatus_ Log::LogThread() 
-{
-    m_Queue.ReadTo([this](const char *msg, uint16_t size){
-        m_Output->write(msg, size);
-#ifdef FLUSH_EVERY_MESSAGE
-        m_Output->flush(); 
-#endif // FLUSH_EVERY_MESSAGE
-        if (m_Output->fail())
-        {
-            throw std::exception("From Writer thread: IO Failed!");
-        }
-    });
 
-    return LoggerThreadStatus_::RUNNING;
-}
-
-Log::LoggerThreadStatus_ Log::LogExceptHandler(const std::exception& e) 
-{
-    std::cerr << "Exception has been thrown from LogThread!\n" << e.what() << std::endl;
-    return LoggerThreadStatus_::FAILED;
-}
-
-
-Log::Log(std::unique_ptr<std::ostream> stream, LogLevel level, 
-        size_t queue_size, Formatter format, Log* attached, LogPoolSptr pool)
-  : m_Output(std::move(stream))
-  , m_Level(level)
-  , m_Queue(queue_size)
-  , m_Format(format)
-  , m_AttachedLog(attached)
-  , m_Pool(pool)
-{
-    m_Pool->RunTask<Log*>
-        (&Log::LogExceptHandler, &Log::LogThread, this);
-}
-
-Log::Log(const LogSpecs& specs) 
-  : Log(nullptr,
-    specs._Level,
-    DEFAULT_QUEUE_SIZE,
-    specs._Format,
-    static_cast<Log*>(specs._Attached),
-    specs._ThreadPool)
+Log::Log(const LogSpecs& specs)
 {
     switch(specs._Target.Type)
     {
-        case LogSpecs::FILENAME:
+        case LogSpecs::TargetType::FILENAME
         {
             auto file = OpenFileStream(specs._Target.Value.Filename);
             m_Output.swap(file);
             break;
         }
-        case LogSpecs::STREAM:
+        case LogSpecs::TargetType::STREAM:
         {
             auto stream = std::make_unique<std::ostream>(specs._Target.Value.Stream->rdbuf());
             m_Output.swap(stream);
@@ -125,13 +38,30 @@ Log::Log(const LogSpecs& specs)
 
 Log::~Log()
 {
-    m_Queue.ShutDown();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (m_Output)
-        m_Output->flush();
 }
+
+
+Log::LoggerThreadStatus_ Log::LogThread(std::ostream& output) 
+{
+    m_Queue.ReadTo([this, &output](const char * const msg, uint16_t size){
+        output.write(msg, size);
+
+#ifdef FLUSH_EVERY_MESSAGE
+        output.flush(); 
+#endif // FLUSH_EVERY_MESSAGE
+        if (output.fail())
+        {
+            throw std::exception("From Writer thread: IO Failed!");
+        }
+    });
+
+    //TODO: Global log never ending, need to shutdown 
+    return LoggerThreadStatus_::RUNNING;
+}
+
+///////////////////
+//    LogBase    //
+///////////////////
 
 void LogBase::default_format(std::ostream& msg_out, MessageData mdata)
 {
@@ -154,5 +84,51 @@ void LogBase::JSON_format(std::ostream& msg_out, MessageData mdata)
         << " : " << std::quoted(mdata.Content) << std::endl 
         << "},"  << std::endl;
 };
+
+std::unique_ptr<std::ostream> LogBase::OpenFileStream(const std::string& logname)
+{
+    auto file = std::make_unique<std::ofstream>(MakeLogFileName(logname), std::ios::app);
+    if (file->fail())
+    {
+        throw std::runtime_error("Failed To Open LogFile!");
+    }
+    return std::move(file);
+}
+
+std::string LogBase::MakeLogFileName(const std::string& prefix_name)
+{
+    return prefix_name + "-" + GetTimeStr("%F") + ".log";
+}
+
+std::string LogBase::GetTimeStr(const std::string& fmt)
+{
+    const auto date = std::chrono::system_clock::now();
+    const std::time_t t_c = std::chrono::system_clock::to_time_t(date);
+    tm date_info;
+    
+    __localtime(&date_info, &t_c);
+    
+    char timestr_buffer[128];
+    strftime(timestr_buffer, 128, fmt.c_str(), &date_info);
+
+    return timestr_buffer;
+}
+
+/////////////////////
+//     LogSpecs    //
+/////////////////////
+
+
+LogBase::LogSpecs& LogBase::LogSpecs::ThreadPool(LogPoolSptr pool)
+{
+    _ThreadPool = pool;
+    return *this;
+}
+
+LogBase::LogSpecs& LogBase::LogSpecs::DefaultQueue(LogQueueSptr queue)
+{
+    _DefaultLogQueue = queue;
+    return *this;
+} 
 
 } // namespace obps

@@ -14,10 +14,10 @@ public:
     // shutdown global thread pool
     ~LogScopeDestroyer()
     {
-        Log::LogPool::GetInstance()->ShutDown();
-        // + also shutdown user defined pools in the future 
+        LogBase::LogPool::GetInstance()->ShutDown();
+        // + also shutdown user defined pools if any in the future 
     }
-
+    
     LogScopeDestroyer()
     {}
 
