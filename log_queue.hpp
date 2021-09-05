@@ -18,9 +18,9 @@ namespace obps
 template <size_t msg_size>
 class LogQueue final
 {
-static_assert(msg_size > 0, "Message size must be greater than 0!");
-static_assert(msg_size <= 1024, "Max Message size is 1024 bytes!");
-static_assert(msg_size % sizeof(size_t) == 0, "message must be aligned to word size");
+    static_assert(msg_size > 0, "Message size must be greater than 0!");
+    static_assert(msg_size <= 1024, "Max Message size is 1024 bytes!");
+    static_assert(msg_size % sizeof(size_t) == 0, "message must be aligned to word size");
 
 public:
     typedef uint16_t MessageSize_t;
@@ -32,16 +32,27 @@ public:
     explicit LogQueue(size_t queue_size);
     ~LogQueue();
 
-    uint16_t Read(char *out);
-    uint16_t ReadToFile(std::ostream& dest);
-    uint16_t ReadTo(std::function<void(const char *msg, uint16_t size)> f);
+    using UserReadCallback = std::function<void(const char * const queue_message_buffer, uint16_t size)>;
+    using UserWriteCallback = std::function<void(char * const queue_message_buffer, uint16_t size)>;
 
-    void Write(const char *in, uint16_t size);
-    void Write(std::istream& in_stream, uint16_t size);
+    uint16_t ReadTo(char *out);
+    uint16_t ReadTo(std::ostream& dest);
+    uint16_t ReadTo(UserReadCallback callback);
     
+    template<typename M>
+    uint16_t ReadEmplace(M * memory);
+
+    void WriteFrom(const char *in, uint16_t size);
+    void WriteFrom(std::istream& in_stream, uint16_t size);
+    void WriteFrom(UserWriteCallback callback);
+    
+    template<typename M, typename ...Args>
+    void WriteEmplace(Args&& ...args);
+
     bool isAlive() const noexcept;
     bool isReadAvailable() const noexcept;
     bool isWriteAvailable() const noexcept;
+    
     size_t GetMessagesCount() const noexcept;
     size_t GetSize() const noexcept;
 
@@ -50,7 +61,9 @@ public:
     void ShutDown();
 
 private:
-    void ReadDecorator(std::function<void(void)> read_impl);
+    void ReadDecorator(const std::function<void(void)> read_impl);
+    void ReadCriticalSection(const std::function<void(void)> &read_impl);
+
     void WriteDecorator(std::function<void(void)> write_impl);
 
     struct Message
@@ -65,7 +78,6 @@ private:
     typename std::vector<Message>::const_iterator m_Reader;
     typename std::vector<Message>::iterator       m_Writer;
 
-
     std::mutex m_ReaderMutex;
     std::condition_variable m_ReadCV;
     spinlock writer_spinlock;
@@ -76,72 +88,7 @@ private:
     bool m_Alive = true;
     bool m_ShutDownReaders = false;
     bool m_ShutDownWriters = false;
-};
-
-
-template <size_t msg_size>
-bool LogQueue<msg_size>::isAlive() const noexcept
-{ 
-    return m_Alive;
-}
-
-
-template <size_t msg_size>
-void LogQueue<msg_size>::ShutDownReaders() 
-{ 
-    m_ShutDownReaders = true;
-
-    while(m_num_of_waiting_readers.load(std::memory_order_relaxed))
-    {
-        m_ReadCV.notify_all(); 
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
-    }
-}
-
-
-template <size_t msg_size>
-void LogQueue<msg_size>::ShutDownWriters() noexcept
-{ 
-    m_ShutDownWriters = true;
-}
-
-
-template <size_t msg_size>
-void LogQueue<msg_size>::ShutDown() 
-{ 
-    ShutDownWriters();
-    ShutDownReaders();
-
-    m_Alive = false;
-}
-
-
-template <size_t msg_size>
-bool LogQueue<msg_size>::isReadAvailable() const noexcept
-{
-    return GetMessagesCount() > 0; 
-}
-
-
-template <size_t msg_size>
-bool LogQueue<msg_size>::isWriteAvailable() const noexcept
-{
-    return GetMessagesCount() < m_QueueSize;
-}
-
-
-template <size_t msg_size>
-size_t LogQueue<msg_size>::GetMessagesCount() const noexcept 
-{
-    return messages_available_for_reading.load(std::memory_order_relaxed);
-}
-
-
-template <size_t msg_size>
-size_t LogQueue<msg_size>::GetSize() const noexcept
-{
-    return m_QueueSize;
-}
+}; // class LogQueue
 
 
 template <size_t msg_size>
@@ -154,7 +101,6 @@ LogQueue<msg_size>::LogQueue(size_t queue_size)
     assert(queue_size > 0 && "Queue size must be greater than 0!");
 }
 
-
 template <size_t msg_size>
 LogQueue<msg_size>::~LogQueue()
 {
@@ -162,57 +108,8 @@ LogQueue<msg_size>::~LogQueue()
     m_ReadCV.notify_all();
 }
 
-
 template <size_t msg_size>
-void LogQueue<msg_size>::ReadDecorator(std::function<void(void)> read_impl)
-{
-    auto critical_section_read = [this, &read_impl]{
-        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
-
-        if (isReadAvailable())
-        {
-            if (m_Reader == m_Messages.cend())
-            {
-                m_Reader = m_Messages.cbegin();
-            }
-
-            read_impl();
-            m_Reader = std::next(m_Reader);
-
-            messages_available_for_reading.fetch_sub(1, std::memory_order_relaxed);
-        }
-    };
-
-    m_num_of_waiting_readers.fetch_add(1, std::memory_order_relaxed);
-
-    // Wait
-    {
-        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
-
-        m_ReadCV.wait(lock_, [this]{ return isReadAvailable() || m_ShutDownReaders; });
-
-        if (m_ShutDownReaders)
-        {
-            while(isReadAvailable())
-            {
-                critical_section_read(); // complete remaining reads before shutdown 
-            }
-
-            m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
-
-            return;
-        }
-    }
-
-    // Critical
-    critical_section_read();
-
-    m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
-}
-
-
-template <size_t msg_size>
-uint16_t LogQueue<msg_size>::Read(char *out)
+uint16_t LogQueue<msg_size>::ReadTo(char *out)
 {
     uint16_t size;
     
@@ -224,9 +121,8 @@ uint16_t LogQueue<msg_size>::Read(char *out)
     return size;
 }
 
-
 template <size_t msg_size>
-uint16_t LogQueue<msg_size>::ReadToFile(std::ostream& dest)
+uint16_t LogQueue<msg_size>::ReadTo(std::ostream& dest)
 {
     uint16_t size;
 
@@ -240,18 +136,95 @@ uint16_t LogQueue<msg_size>::ReadToFile(std::ostream& dest)
 
 
 template <size_t msg_size>
-uint16_t LogQueue<msg_size>::ReadTo(std::function<void(const char *msg, uint16_t size)> f)
+uint16_t LogQueue<msg_size>::ReadTo(UserReadCallback callback)
 {
     uint16_t size;
 
-    ReadDecorator([this, &f, &size]{
+    ReadDecorator([this, &callback, &size]{
         size = m_Reader->Size;
-        f(m_Reader->Buffer, size);
+        callback(m_Reader->Buffer, size);
     });
 
     return size;
 }
 
+template <size_t msg_size>
+void LogQueue<msg_size>::WriteFrom(const char *in, uint16_t size)
+{
+    WriteDecorator([this, &in, &size](){
+        std::memcpy(m_Writer->Buffer, in, size);
+        m_Writer->Size = size;
+    });
+}
+
+
+template <size_t msg_size>
+void LogQueue<msg_size>::WriteFrom(std::istream& in_stream, uint16_t size)
+{
+    WriteDecorator([this, &in_stream, &size](){
+        in_stream.read(m_Writer->Buffer, size);
+        
+        m_Writer->Size = size;
+    });
+}
+
+template <size_t msg_size>
+void LogQueue<msg_size>::WriteFrom(UserWriteCallback callback)
+{
+    WriteDecorator([this, &in_stream, &size](){
+        in_stream.read(m_Writer->Buffer, size);
+        
+        m_Writer->Size = size;
+    });
+}
+
+template <size_t msg_size>
+void LogQueue<msg_size>::ReadDecorator(const std::function<void(void)> read_impl)
+{
+    m_num_of_waiting_readers.fetch_add(1, std::memory_order_relaxed);
+
+    // Wait
+    {
+        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
+
+        m_ReadCV.wait(lock_, [this]{ return isReadAvailable() || m_ShutDownReaders; });
+
+        if (m_ShutDownReaders)
+        {
+            while(isReadAvailable())
+            {
+                ReadCriticalSection(); // complete remaining reads before shutdown 
+            }
+
+            m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
+
+            return;
+        }
+    }
+
+    ReadCriticalSection();
+
+    m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
+} // ReadDecorator
+
+template <size_t msg_size>
+void LogQueue<msg_size>::ReadCriticalSection(const std::function<void(void)> &read_impl)
+{
+    auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
+
+    if (isReadAvailable())
+    {
+        if (m_Reader == m_Messages.cend())
+        {
+            m_Reader = m_Messages.cbegin();
+        }
+
+        read_impl();
+        m_Reader = std::next(m_Reader);
+
+        messages_available_for_reading.fetch_sub(1, std::memory_order_relaxed);
+    }
+}
 
 template <size_t msg_size>
 void LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
@@ -292,25 +265,61 @@ void LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
     }
 }
 
-
 template <size_t msg_size>
-void LogQueue<msg_size>::Write(const char *in, uint16_t size)
-{
-    WriteDecorator([this, &in, &size](){
-        std::memcpy(m_Writer->Buffer, in, size);
-        m_Writer->Size = size;
-    });
+bool LogQueue<msg_size>::isAlive() const noexcept
+{ 
+    return m_Alive;
 }
 
+template <size_t msg_size>
+void LogQueue<msg_size>::ShutDownReaders() 
+{ 
+    m_ShutDownReaders = true;
+
+    while(m_num_of_waiting_readers.load(std::memory_order_relaxed))
+    {
+        m_ReadCV.notify_all(); 
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    }
+}
 
 template <size_t msg_size>
-void LogQueue<msg_size>::Write(std::istream& in_stream, uint16_t size)
+void LogQueue<msg_size>::ShutDownWriters() noexcept
+{ 
+    m_ShutDownWriters = true;
+}
+
+template <size_t msg_size>
+void LogQueue<msg_size>::ShutDown() 
+{ 
+    ShutDownWriters();
+    ShutDownReaders();
+
+    m_Alive = false;
+}
+
+template <size_t msg_size>
+bool LogQueue<msg_size>::isReadAvailable() const noexcept
 {
-    WriteDecorator([this, &in_stream, &size](){
-        in_stream.read(m_Writer->Buffer, size);
-        
-        m_Writer->Size = size;
-    });
+    return GetMessagesCount() > 0; 
+}
+
+template <size_t msg_size>
+bool LogQueue<msg_size>::isWriteAvailable() const noexcept
+{
+    return GetMessagesCount() < m_QueueSize;
+}
+
+template <size_t msg_size>
+size_t LogQueue<msg_size>::GetMessagesCount() const noexcept 
+{
+    return messages_available_for_reading.load(std::memory_order_relaxed);
+}
+
+template <size_t msg_size>
+size_t LogQueue<msg_size>::GetSize() const noexcept
+{
+    return m_QueueSize;
 }
 
 } // namespace obps
