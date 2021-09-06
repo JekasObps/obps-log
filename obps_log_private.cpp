@@ -48,6 +48,7 @@ Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
 
 Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std::ostream> output) 
 {
+    // Constructing and writing to the stream inside syncronizing decorator
     auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){
         MessageData message;
         LogQueue_::Construct<MessageData>(&message, buffer);
@@ -75,6 +76,9 @@ Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std:
 //    LogBase    //
 ///////////////////
 
+/*
+*   Singleton Builder For ThreadPool.
+*/
 LogBase::LogPoolSptr LogBase::GetDefaultThreadPoolInstance() 
 {
     static LogPoolSptr s_Instance;
@@ -86,6 +90,9 @@ LogBase::LogPoolSptr LogBase::GetDefaultThreadPoolInstance()
     return s_Instance;
 }
 
+/*
+*   Singleton Builder For Queue.
+*/
 LogBase::LogQueueSptr LogBase::GetDefaultQueueInstance() 
 {
     static LogQueueSptr s_Instance;
@@ -100,7 +107,7 @@ LogBase::LogQueueSptr LogBase::GetDefaultQueueInstance()
 
 void LogBase::default_format(std::ostream& out, const std::time_t ts, const LogLevel level, const std::thread::id tid, const char* text)
 {
-    out << GetTimeStr("%F %T", ts) << "[" 
+    out << GetTimeStr("%F %T ", ts) << "[" 
         << tid << "] "
         << PrettyLevel(level) << " "
         << text << "\n";

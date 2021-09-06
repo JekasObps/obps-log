@@ -2,7 +2,7 @@
 Simple c++ logging library written for my personal use.
 
 
-# Design
+# Design TODO: FIXME:
 
 Logging functionality designed to be easily turned on and off at compile time.
 This feature accomplished by using macros defined in obps_log_public.hpp
