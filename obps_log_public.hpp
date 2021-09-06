@@ -32,18 +32,11 @@
     /*
     *   Call at the beginning of the logging scope
     */
-    #define SCOPE_LOG(level, file_name_or_stream, ...) \
-        static auto _SCOPE_LOG_ID = obps::Log({file_name_or_stream, obps::LogLevel::level, __VA_ARGS__})
-    
-    /* FIXME: there is no attach any more. (This is a peace of Redesing he said)
-    */
-    #define SCOPE_ADD(level, file_name_or_stream, ...) \
-        // static auto EXP(__attached_log_, __LINE__) = obps::Log({file_name_or_stream, obps::LogLevel::level, __VA_ARGS__}); \
-        // _SCOPE_LOG_ID.Attach( EXP(__attached_log_, __LINE__) )
+    #define SCOPE_LOG(...) \
+        static auto _SCOPE_LOG_ID = obps::Log({__VA_ARGS__})
 
 #else
     #define OBPS_LOG_INIT() ;
     #define GLOBAL_LOG(...) ; 
     #define SCOPE_LOG(...) ;
-    #define SCOPE_ADD(...) ;
 #endif // LOG_ON

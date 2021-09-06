@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdlib>
+
 #include <iostream>
 #include <set>
+
 
 #include "ObpsLogConfig.hpp"
 #include "thread_pool.hpp"
@@ -33,17 +36,45 @@ constexpr auto PrettyLevel(const LogLevel level)
 
 class LogBase
 {
+public:
+    static constexpr size_t text_field_size = 256;
+    static constexpr size_t default_queue_size = DEFAULT_QUEUE_SIZE;
+    using FormatSignature = void (std::ostream&, const std::time_t, const LogLevel, const std::thread::id, const char* text);
+    using Formatter = std::function<FormatSignature>;
+
 protected:
     struct MessageData
     {
-        const std::time_t       TimeStamp;
-        const LogLevel          Level;
-        const std::thread::id   Tid;
-        const char              Text[1]; // flex array
-    };
+        std::time_t             TimeStamp;
+        LogLevel                Level;
+        std::thread::id         Tid;
+        FormatSignature*        Format;
+        char                    Text[text_field_size];
+
+        MessageData(){};
+        
+        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatSignature* const fmt, const char * const src) 
+          : TimeStamp(ts)
+          , Level(lvl)
+          , Tid(tid)
+          , Format(fmt)
+        {
+            std::memcpy(Text, src, text_field_size);
+        }
+
+        MessageData(const MessageData& other) 
+          : TimeStamp(other.TimeStamp)
+          , Level(other.Level)
+          , Tid(other.Tid)
+          , Format(other.Format)
+        {
+            std::memcpy(Text, other.Text, text_field_size);
+        }
+    }; // struct MessageData
 
     LogBase(){}
     ~LogBase(){}
+
 public:
     enum class LoggerThreadStatus_ 
     {
@@ -52,21 +83,20 @@ public:
         ABORTED     // logger thread has aborted
     };
 
-    using FormatSignature = void (std::ostream&, MessageData);
-    using Formatter = std::function<FormatSignature>;
-    
-    static FormatSignature default_format;
-    static FormatSignature JSON_format;
-
     static std::unique_ptr<std::ostream> OpenFileStream(const std::string& logname);
-    static std::string MakeLogFileName(const std::string& prefix_name);
-    static std::string GetTimeStr(const std::string& fmt);
 
     using LogPool = ThreadPool<LoggerThreadStatus_, LoggerThreadStatus_::RUNNING, LoggerThreadStatus_::FINISHED, LoggerThreadStatus_::ABORTED>;
     using LogPoolSptr = std::shared_ptr<LogPool>;
-    using LogExceptHandler = std::function<void(std::exception& e)>;
 
-    using LogQueueSptr = std::shared_ptr<LogQueue<DEFAULT_QUEUE_SIZE>>;
+    static LogPoolSptr GetDefaultThreadPoolInstance();
+
+    using LogQueue_ = LogQueue<MAX_MSG_SIZE>; 
+    using LogQueueSptr = std::shared_ptr<LogQueue_>;
+    
+    static LogQueueSptr GetDefaultQueueInstance();
+
+    static FormatSignature default_format;
+    static FormatSignature JSON;
 
     LogBase(const LogBase&) = delete;
     LogBase& operator=(const LogBase&) = delete;
@@ -96,45 +126,37 @@ public:
             }
             
             // custom variant pattern
-            union 
-            {
+            union {
                 const char*   Filename;
                 std::ostream* Stream;
             } Value;
 
             OutputType Type;
+        }; // struct FilenameOrStream
+
+        struct OutputSpec
+        {
+            LogLevel level;                     
+            FilenameOrStream file_or_stream;    
+            // defaults:   
+            OutputModifier mod = OutputModifier::NONE;
+            LogQueueSptr queue = GetDefaultQueueInstance();               
+            FormatSignature* format = &LogBase::default_format;
         };
 
-        using OutputSpec = std::tuple<
-            LogLevel,                     // severity level of the output target 
-            OutputModifier,               // isolate specific level   
-            FilenameOrStream,             // output
-            LogQueueSptr,                 // specific queue
-            Formatter                     // corresponding formatter 
-        >;
-        
-        LogSpecs& Outputs(std::initializer_list<OutputSpec> l);
-        LogSpecs& ThreadPool(LogPoolSptr pool);
-        LogSpecs& DefaultQueue(LogQueueSptr queue);
+        LogSpecs(std::initializer_list<OutputSpec> outputs, LogPoolSptr pool = GetDefaultThreadPoolInstance())
+          : _Outputs(outputs), _ThreadPool(pool)
+        {}
 
-        LogPoolSptr _ThreadPool { LogPool::GetInstance() };
-
-        LogQueueSptr _DefaultLogQueue {
-            std::make_shared<LogQueue<DEFAULT_QUEUE_SIZE>>()
-        };
-
-        std::set<OutputSpec> _Outputs {
-            {
-                LogLevel::WARN, 
-                OutputModifier::NONE,
-                std::cout,
-                _DefaultLogQueue,
-                default_format
-            }
-        };
+        std::vector<OutputSpec> _Outputs;
+        LogPoolSptr             _ThreadPool;
     }; // class LogSpecs
 
 }; // class LogBase
+
+std::string MakeLogFileName(const std::string& prefix_name);
+std::string GetTimeStr(const char* fmt, const std::time_t stamp) noexcept;
+const std::time_t get_timestamp() noexcept;
 
 
 } // namespace obps

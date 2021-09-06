@@ -23,6 +23,8 @@ class LogQueue final
     static_assert(msg_size % sizeof(size_t) == 0, "message must be aligned to word size");
 
 public:
+    enum class OperationStatus {SUCCESS, SHUTDOWN, FAIL};
+
     typedef uint16_t MessageSize_t;
 
     static constexpr size_t max_message_size = msg_size;
@@ -34,20 +36,27 @@ public:
 
     using UserReadCallback = std::function<void(const char * const queue_message_buffer, uint16_t size)>;
     using UserWriteCallback = std::function<void(char * const queue_message_buffer, uint16_t size)>;
-
-    uint16_t ReadTo(char *out);
-    uint16_t ReadTo(std::ostream& dest);
-    uint16_t ReadTo(UserReadCallback callback);
+    
+    /**
+    * Removing From The Queue: */
+    OperationStatus ReadTo(char *out);
+    OperationStatus ReadTo(std::ostream& dest);
+    OperationStatus ReadTo(UserReadCallback callback);
     
     template<typename M>
-    uint16_t ReadEmplace(M * memory);
+    OperationStatus ReadEmplace(M * memory);
 
-    void WriteFrom(const char *in, uint16_t size);
-    void WriteFrom(std::istream& in_stream, uint16_t size);
-    void WriteFrom(UserWriteCallback callback);
+    template<typename M>
+    static void Construct(M * memory, const char* buffer) noexcept;
+
+    /**
+    * Inserting Into The Queue: */
+    OperationStatus WriteFrom(const char *in, uint16_t size);
+    OperationStatus WriteFrom(std::istream& in_stream, uint16_t size);
+    OperationStatus WriteFrom(UserWriteCallback callback);
     
     template<typename M, typename ...Args>
-    void WriteEmplace(Args&& ...args);
+    OperationStatus WriteEmplace(Args&& ...args);
 
     bool isAlive() const noexcept;
     bool isReadAvailable() const noexcept;
@@ -61,10 +70,10 @@ public:
     void ShutDown();
 
 private:
-    void ReadDecorator(const std::function<void(void)> read_impl);
-    void ReadCriticalSection(const std::function<void(void)> &read_impl);
+    OperationStatus ReadDecorator(const std::function<void(void)> read_impl);
+    OperationStatus ReadCriticalSection(const std::function<void(void)> &read_impl);
 
-    void WriteDecorator(std::function<void(void)> write_impl);
+    OperationStatus WriteDecorator(std::function<void(void)> write_impl);
 
     struct Message
     {
@@ -109,59 +118,59 @@ LogQueue<msg_size>::~LogQueue()
 }
 
 template <size_t msg_size>
-uint16_t LogQueue<msg_size>::ReadTo(char *out)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadTo(char *out)
 {
-    uint16_t size;
-    
-    ReadDecorator([this, &out, &size]{
-        size = m_Reader->Size;
-        std::memcpy(out, m_Reader->Buffer, size);
+    return ReadDecorator([this, &out]{
+        std::memcpy(out, m_Reader->Buffer, m_Reader->Size);
     });
-
-    return size;
 }
 
 template <size_t msg_size>
-uint16_t LogQueue<msg_size>::ReadTo(std::ostream& dest)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadTo(std::ostream& dest)
 {
-    uint16_t size;
-
-    ReadDecorator([this, &dest, &size]{
-        size = m_Reader->Size;
-        dest.write(m_Reader->Buffer, size); 
+    return ReadDecorator([this, &dest]{
+        dest.write(m_Reader->Buffer, m_Reader->Size); 
     });
-
-    return size;
 }
 
 
 template <size_t msg_size>
-uint16_t LogQueue<msg_size>::ReadTo(UserReadCallback callback)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadTo(UserReadCallback callback)
 {
-    uint16_t size;
-
-    ReadDecorator([this, &callback, &size]{
-        size = m_Reader->Size;
-        callback(m_Reader->Buffer, size);
+    return ReadDecorator([this, &callback]{
+        callback(m_Reader->Buffer, m_Reader->Size);
     });
+}
 
-    return size;
+template<size_t msg_size>
+template<typename M>
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadEmplace(M * memory)
+{
+    return ReadDecorator([this, &memory]{
+        Construct(memory, m_Reader->Buffer);
+    });
+}
+
+template<size_t msg_size>
+template<typename M>
+void LogQueue<msg_size>::Construct(M * memory, const char* buffer) noexcept
+{
+    new (memory) M(*reinterpret_cast<const M*>(buffer));
 }
 
 template <size_t msg_size>
-void LogQueue<msg_size>::WriteFrom(const char *in, uint16_t size)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteFrom(const char *in, uint16_t size)
 {
-    WriteDecorator([this, &in, &size](){
+    return WriteDecorator([this, &in, &size](){
         std::memcpy(m_Writer->Buffer, in, size);
         m_Writer->Size = size;
     });
 }
 
-
 template <size_t msg_size>
-void LogQueue<msg_size>::WriteFrom(std::istream& in_stream, uint16_t size)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteFrom(std::istream& in_stream, uint16_t size)
 {
-    WriteDecorator([this, &in_stream, &size](){
+    return WriteDecorator([this, &in_stream, &size](){
         in_stream.read(m_Writer->Buffer, size);
         
         m_Writer->Size = size;
@@ -169,17 +178,23 @@ void LogQueue<msg_size>::WriteFrom(std::istream& in_stream, uint16_t size)
 }
 
 template <size_t msg_size>
-void LogQueue<msg_size>::WriteFrom(UserWriteCallback callback)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteFrom(UserWriteCallback callback)
 {
-    WriteDecorator([this, &in_stream, &size](){
-        in_stream.read(m_Writer->Buffer, size);
-        
-        m_Writer->Size = size;
+    return WriteDecorator(callback);
+}
+
+template<size_t msg_size>
+template<typename M, typename ...Args>
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteEmplace(Args&& ...args)
+{
+    return WriteDecorator([this, args...]{
+        m_Writer->Size = sizeof(M);
+        new (m_Writer->Buffer) M(args...);
     });
 }
 
 template <size_t msg_size>
-void LogQueue<msg_size>::ReadDecorator(const std::function<void(void)> read_impl)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadDecorator(const std::function<void(void)> read_impl)
 {
     m_num_of_waiting_readers.fetch_add(1, std::memory_order_relaxed);
 
@@ -193,25 +208,29 @@ void LogQueue<msg_size>::ReadDecorator(const std::function<void(void)> read_impl
         {
             while(isReadAvailable())
             {
-                ReadCriticalSection(); // complete remaining reads before shutdown 
+                ReadCriticalSection(read_impl); // complete remaining reads before shutdown 
             }
 
             m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
 
-            return;
+            return OperationStatus::SHUTDOWN;
         }
     }
-
-    ReadCriticalSection();
-
+        
+    OperationStatus op_status;
+    {   
+        auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
+        op_status = ReadCriticalSection(read_impl);
+    }
+    
     m_num_of_waiting_readers.fetch_sub(1, std::memory_order_relaxed);
+
+    return op_status;
 } // ReadDecorator
 
 template <size_t msg_size>
-void LogQueue<msg_size>::ReadCriticalSection(const std::function<void(void)> &read_impl)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::ReadCriticalSection(const std::function<void(void)> &read_impl)
 {
-    auto lock_ = std::unique_lock<std::mutex>(m_ReaderMutex);
-
     if (isReadAvailable())
     {
         if (m_Reader == m_Messages.cend())
@@ -223,21 +242,24 @@ void LogQueue<msg_size>::ReadCriticalSection(const std::function<void(void)> &re
         m_Reader = std::next(m_Reader);
 
         messages_available_for_reading.fetch_sub(1, std::memory_order_relaxed);
+
+        return OperationStatus::SUCCESS;
     }
+
+    return OperationStatus::FAIL;
 }
 
 template <size_t msg_size>
-void LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
+LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
 {
     for(;;) {
-
     // Wait until write available
     writer_spinlock.lock([this]{ return isWriteAvailable() || m_ShutDownWriters; });
     
     if (m_ShutDownWriters)
     {   
         writer_spinlock.unlock();
-        return;
+        return OperationStatus::SHUTDOWN;
     }
 
     if (isWriteAvailable())
@@ -263,6 +285,7 @@ void LogQueue<msg_size>::WriteDecorator(std::function<void(void)> write_impl)
         continue; // try again
     }
     }
+    return OperationStatus::SUCCESS;
 }
 
 template <size_t msg_size>

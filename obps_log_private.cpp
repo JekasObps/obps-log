@@ -9,53 +9,65 @@ template class LogBase::LogPool; // instantiate LogPool
 //      Log      //
 ///////////////////
 
-
-void Log::SendToQueue()
+Log::Log(const LogSpecs& specs) : m_Pool(specs._ThreadPool)
 {
-
-}
-
-
-
-Log::Log(const LogSpecs& specs)
-{
-    switch(specs._Target.Type)
+    for (auto&& o_spec : specs._Outputs)
     {
-        case LogSpecs::TargetType::FILENAME
-        {
-            auto file = OpenFileStream(specs._Target.Value.Filename);
-            m_Output.swap(file);
-            break;
-        }
-        case LogSpecs::TargetType::STREAM:
-        {
-            auto stream = std::make_unique<std::ostream>(specs._Target.Value.Stream->rdbuf());
-            m_Output.swap(stream);
-            break;
-        }
+        AddOutput(o_spec);
     }
 }
 
 Log::~Log()
+{}
+
+void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
 {
+    auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));
+
+    m_Pool->RunTask<LogQueueSptr, std::shared_ptr<std::ostream>>(&Log::LogThread, std::get<2>(output), std::get<4>(output));
 }
 
-
-Log::LoggerThreadStatus_ Log::LogThread(std::ostream& output) 
+Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
 {
-    m_Queue.ReadTo([this, &output](const char * const msg, uint16_t size){
-        output.write(msg, size);
+    switch (o_spec.file_or_stream.Type)
+    {
+        case LogSpecs::OutputType::FILENAME: 
+        {
+            return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format,
+                OpenFileStream(o_spec.file_or_stream.Value.Filename));
+        }
+        case LogSpecs::OutputType::STREAM:
+        {
+            return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format, 
+                std::make_unique<std::ostream>(o_spec.file_or_stream.Value.Stream->rdbuf()));
+        }
+        default:
+            throw std::logic_error("FileOrStream::UnknownType");
+    };
+}
+
+Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std::ostream> output) 
+{
+    auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){
+        MessageData message;
+        LogQueue_::Construct<MessageData>(&message, buffer);
+        message.Format(*output, message.TimeStamp, message.Level, message.Tid, message.Text);
+    });
+        
+    if (status == LogQueue_::OperationStatus::SHUTDOWN)
+    {
+        output->flush();
+        return LoggerThreadStatus_::FINISHED;
+    }
 
 #ifdef FLUSH_EVERY_MESSAGE
-        output.flush(); 
+    output->flush(); 
 #endif // FLUSH_EVERY_MESSAGE
-        if (output.fail())
-        {
-            throw std::exception("From Writer thread: IO Failed!");
-        }
-    });
 
-    //TODO: Global log never ending, need to shutdown 
+    if (output->fail())
+    {
+        return LoggerThreadStatus_::ABORTED;
+    }
     return LoggerThreadStatus_::RUNNING;
 }
 
@@ -63,26 +75,49 @@ Log::LoggerThreadStatus_ Log::LogThread(std::ostream& output)
 //    LogBase    //
 ///////////////////
 
-void LogBase::default_format(std::ostream& msg_out, MessageData mdata)
+LogBase::LogPoolSptr LogBase::GetDefaultThreadPoolInstance() 
 {
-    msg_out << GetTimeStr("%F %T [") 
-            << mdata.Tid << "] "
-            << mdata.PrettyLevel << " " << mdata.Content 
-            << std::endl;
+    static LogPoolSptr s_Instance;
+    static bool isInit = false;
+    if (!isInit){
+        s_Instance = std::make_shared<LogPool>();
+        isInit = true;
+    }
+    return s_Instance;
+}
+
+LogBase::LogQueueSptr LogBase::GetDefaultQueueInstance() 
+{
+    static LogQueueSptr s_Instance;
+    static bool isInit = false;
+    if (!isInit){
+        s_Instance = std::make_shared<LogQueue_>(default_queue_size);
+        isInit = true;
+    }
+    return s_Instance;
+}
+
+
+void LogBase::default_format(std::ostream& out, const std::time_t ts, const LogLevel level, const std::thread::id tid, const char* text)
+{
+    out << GetTimeStr("%F %T", ts) << "[" 
+        << tid << "] "
+        << PrettyLevel(level) << " "
+        << text << "\n";
 };
 
-void LogBase::JSON_format(std::ostream& msg_out, MessageData mdata)
+void LogBase::JSON(std::ostream& out, const std::time_t ts, const LogLevel level, const std::thread::id tid, const char* text)
 {
-    msg_out << "{"   << std::endl << std::left
+    out << "{\n" << std::left
         << "  "  << std::setw(10) << std::quoted("level") 
-        << " : " << std::quoted(mdata.PrettyLevel) << "," << std::endl
+        << " : " << std::quoted(PrettyLevel(level)) << ",\n"
         << "  "  << std::setw(10) << std::quoted("date")
-        << " : " << std::quoted(GetTimeStr(mdata.DateFmt)) << "," << std::endl
+        << " : " << std::quoted(GetTimeStr("%F %T", ts)) << ",\n"
         << "  "  << std::setw(10) << std::quoted("tid")
-        << " : " << mdata.Tid << "," << std::endl
+        << " : " << tid << ",\n"
         << "  "  << std::setw(10) << std::quoted("message") 
-        << " : " << std::quoted(mdata.Content) << std::endl 
-        << "},"  << std::endl;
+        << " : " << std::quoted(text)
+        << "\n},\n";
 };
 
 std::unique_ptr<std::ostream> LogBase::OpenFileStream(const std::string& logname)
@@ -95,40 +130,27 @@ std::unique_ptr<std::ostream> LogBase::OpenFileStream(const std::string& logname
     return std::move(file);
 }
 
-std::string LogBase::MakeLogFileName(const std::string& prefix_name)
+std::string MakeLogFileName(const std::string& prefix_name)
 {
-    return prefix_name + "-" + GetTimeStr("%F") + ".log";
+    return prefix_name + "-" + GetTimeStr("%F", get_timestamp()) + ".log";
 }
 
-std::string LogBase::GetTimeStr(const std::string& fmt)
+std::string GetTimeStr(const char* fmt, const std::time_t stamp) noexcept
 {
-    const auto date = std::chrono::system_clock::now();
-    const std::time_t t_c = std::chrono::system_clock::to_time_t(date);
     tm date_info;
     
-    __localtime(&date_info, &t_c);
+    __localtime(&date_info, &stamp);
     
     char timestr_buffer[128];
-    strftime(timestr_buffer, 128, fmt.c_str(), &date_info);
+    strftime(timestr_buffer, 128, fmt, &date_info);
 
     return timestr_buffer;
 }
 
-/////////////////////
-//     LogSpecs    //
-/////////////////////
-
-
-LogBase::LogSpecs& LogBase::LogSpecs::ThreadPool(LogPoolSptr pool)
+const std::time_t get_timestamp() noexcept
 {
-    _ThreadPool = pool;
-    return *this;
+    const auto date = std::chrono::system_clock::now();
+    return std::chrono::system_clock::to_time_t(date);
 }
-
-LogBase::LogSpecs& LogBase::LogSpecs::DefaultQueue(LogQueueSptr queue)
-{
-    _DefaultLogQueue = queue;
-    return *this;
-} 
 
 } // namespace obps

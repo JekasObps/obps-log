@@ -16,63 +16,73 @@ namespace obps
 class Log final : public LogBase 
 {
 public:
-    template <typename ...Args>
-    void Write(LogLevel level, Args ...args);
-    
     explicit Log(const LogSpecs& specs);
     ~Log();
-private:
-    using LogThreadFunction = LoggerThreadStatus_ (std::ostream &output);
+
+    void AddOutput(const LogSpecs::OutputSpec & o_spec);
     
-    void SendToQueue(const std::string& message);
-
     template <typename ...Args>
-    std::string BuildMessage(LogLevel level, Args ...args); 
+    void Write(LogLevel level, Args ...args);
+private:
+    using LogThreadFunction = LoggerThreadStatus_ (LogQueueSptr, std::shared_ptr<std::ostream> output);
+    static LogThreadFunction LogThread;
 
-    LogThreadFunction LogThread;
-
-    using Output_ = std::tuple<
-        LogLevel,       // severity level of the output target 
-        LogSpecs::OutputModifier,
-        std::ostream,   // output stream
-        Formatter       // corresponding formatter 
+    using Output = std::tuple<
+        const LogLevel, // severity level of the output target 
+        const LogSpecs::OutputModifier, // isolate specific level   
+        LogQueueSptr, // output specific queue
+        FormatSignature*, // corresponding formatter 
+        std::shared_ptr<std::ostream>
     >;
 
-    std::vector<Output_> m_Outputs;
-    
-    std::shared_ptr<LogQueue<MAX_MSG_SIZE>> m_Queue;
-    
+    template <typename ...Args>
+    MessageData BuildMessage(LogLevel level, FormatSignature* format, Args ...args);
+
+    static Output CreateOutput(const LogSpecs::OutputSpec & o_spec);
+
+    std::vector<Output> m_Outputs;
     LogPoolSptr m_Pool;
 };
 
 template <typename ...Args>
 void Log::Write(LogLevel level, Args ...args)
 {
-    
+    for(auto && [lvl, mod, que, fmt, out] : m_Outputs)
+    {
+        if (lvl >= level) // if level is relevant for current output
+        {
+            que->WriteEmplace<MessageData>(std::move(BuildMessage(level, fmt, args...)));
+        }
+    }
 }
 
 template <typename ...Args>
-std::string Log::BuildMessage(LogLevel level, Args ...args)
+Log::MessageData Log::BuildMessage(LogLevel level, FormatSignature* format, Args ...args)
 {
-    std::stringstream helper_stream;
-    std::string content, message;
+    std::stringstream serializer;
+    std::string text;
 
-	(helper_stream << ... << args);
-    std::getline(helper_stream, content, '\0');
+	(serializer << ... << args);
+    std::getline(serializer, text, '\0');
 
-    helper_stream.clear();
+    assert(text.size() <= text_field_size);
+
+    //TODO: Check size of the text
 
     auto&& message_data = MessageData{ 
-        std::move(content), 
-        "%F %T", 
-        PrettyLevel(level), 
-        std::this_thread::get_id() 
+        get_timestamp(),
+        level, 
+        std::this_thread::get_id(),
+        format,
+        text.c_str()
     };
 
-    m_Format(helper_stream, message_data);
-
-    std::getline(helper_stream, message, '\0');
-    return message;
+    return message_data;
 }
 
 } // namespace obps
+
+namespace 
+{
+    using LogLevel = obps::LogLevel;
+}

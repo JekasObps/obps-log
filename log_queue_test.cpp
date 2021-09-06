@@ -3,10 +3,6 @@
 #include <chrono>
 
 #include <map>
-#include <unordered_map>
-
-#include <cstdlib>
-#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -50,15 +46,14 @@ TEST_F(LogQueueTest, CreateQueueOfSize1) {
 
 
 TEST_F(LogQueueTest, SingleReadWrite) {
-    queue.Write(message, message_len);
+    queue.WriteFrom(message, message_len);
     EXPECT_EQ(queue.GetMessagesCount(), 1)
-        << "Message count expected to be increased after Write(...).";
+        << "Message count expected to be increased after WriteFrom(...).";
 
-    size_t msize = queue.Read(buffer);
-    EXPECT_EQ(msize, message_len) 
-        << "Message size reported from Read(...) must be equal to an actual message size!";
+    queue.ReadTo(buffer);
+
     EXPECT_EQ(queue.GetMessagesCount(), 0)
-        << "Message count expected to descend after Read(...).";
+        << "Message count expected to descend after ReadTo(...).";
 
     EXPECT_EQ(std::strncmp(message, buffer, message_len), 0) 
         << "Message was changed after fetching from queue! expected: \"" 
@@ -70,15 +65,13 @@ TEST_F(LogQueueTest, WriteAndReadToStream) {
     std::stringstream in_stream, out_stream;
     in_stream << message;
 
-    queue.Write(in_stream, message_len);
+    queue.WriteFrom(in_stream, message_len);
     EXPECT_EQ(queue.GetMessagesCount(), 1)
-        << "Message count expected to be increased after Write(...).";
+        << "Message count expected to be increased after WriteFrom(...).";
 
-    size_t msize = queue.ReadToFile(out_stream);
-    EXPECT_EQ(msize, message_len) 
-        << "Message size reported from Read(...) must be equal to an actual message size!";
+    queue.ReadTo(out_stream);
     EXPECT_EQ(queue.GetMessagesCount(), 0)
-        << "Message count expected to descend after Read(...).";
+        << "Message count expected to descend after ReadTo(...).";
 
     out_stream.read(buffer, message_len);
 
@@ -92,7 +85,7 @@ TEST_F(LogQueueTest, TestFullandEmpty) {
     EXPECT_FALSE(smallest_queue.isReadAvailable());
     EXPECT_TRUE(smallest_queue.isWriteAvailable());
 
-    smallest_queue.Write(message, message_len);
+    smallest_queue.WriteFrom(message, message_len);
 
     EXPECT_TRUE(smallest_queue.isReadAvailable());
     EXPECT_FALSE(smallest_queue.isWriteAvailable());
@@ -116,7 +109,7 @@ TEST_F(LogQueueTest, TestShutDownReaders) {
 TEST_F(LogQueueTest, TestAvailable) {
     for(int i=0; i < queue.GetSize(); ++i)
     {
-        queue.Write(message, message_len);
+        queue.WriteFrom(message, message_len);
         EXPECT_TRUE(queue.isReadAvailable());
     }
     
@@ -125,7 +118,7 @@ TEST_F(LogQueueTest, TestAvailable) {
     for(int i=0; i < queue.GetSize(); ++i)
     {
         EXPECT_TRUE(queue.isReadAvailable());
-        queue.Read(buffer);
+        queue.ReadTo(buffer);
         EXPECT_TRUE(queue.isWriteAvailable());
     }
 
@@ -136,10 +129,10 @@ TEST_F(LogQueueTest, TestAvailable) {
 TEST_F(LogQueueTest, TestAvailable2) {
     for(int i=0; i < queue.GetSize() * 3; ++i)
     {
-        queue.Write(message, message_len);
+        queue.WriteFrom(message, message_len);
         EXPECT_TRUE(queue.isReadAvailable());
         EXPECT_TRUE(queue.isWriteAvailable());
-        queue.Read(buffer);
+        queue.ReadTo(buffer);
         EXPECT_FALSE(queue.isReadAvailable());
         EXPECT_TRUE(queue.isWriteAvailable());
     }
@@ -159,7 +152,7 @@ public:
 
         for(int j = 0; j < amount_of_messages_each_writer_sends; ++j)
         {
-            queue.Write(s.c_str(), s.size()+1);
+            queue.WriteFrom(s.c_str(), s.size()+1);
         }
     };
 
@@ -216,7 +209,6 @@ protected:
         }
     }
 
-    std::atomic_flag run_flag = ATOMIC_FLAG_INIT;
     size_t num_of_writers = 100;
     size_t num_of_readers = num_of_writers / 4;
     size_t amount_of_messages_each_writer_sends = 10;

@@ -14,7 +14,8 @@ public:
     // shutdown global thread pool
     ~LogScopeDestroyer()
     {
-        LogBase::LogPool::GetInstance()->ShutDown();
+        LogBase::GetDefaultQueueInstance()->ShutDown();
+        LogBase::GetDefaultThreadPoolInstance()->ShutDown();
         // + also shutdown user defined pools if any in the future 
     }
     
