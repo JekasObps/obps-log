@@ -34,8 +34,10 @@ public:
     explicit LogQueue(size_t queue_size);
     ~LogQueue();
 
-    using UserReadCallback = std::function<void(const char * const queue_message_buffer, uint16_t size)>;
-    using UserWriteCallback = std::function<void(char * const queue_message_buffer, uint16_t size)>;
+    using UserReadCallback = std::function<void(const char * const queue_message_buffer, uint16_t queue_message_size)>;
+    // 
+    // queue_message_size -> is a property that user have to set to the size of a data it puts inside a queue 
+    using UserWriteCallback = std::function<void(char * const queue_message_buffer, uint16_t & queue_message_size_out)>;
     
     /**
     * Removing From The Queue: */
@@ -180,7 +182,9 @@ LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteFrom(std::istream& 
 template <size_t msg_size>
 LogQueue<msg_size>::OperationStatus LogQueue<msg_size>::WriteFrom(UserWriteCallback callback)
 {
-    return WriteDecorator(callback);
+    return WriteDecorator([this, callback](){
+        callback(m_Writer->Buffer, m_Writer->Size);
+    });
 }
 
 template<size_t msg_size>

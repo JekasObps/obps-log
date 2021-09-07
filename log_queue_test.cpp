@@ -139,6 +139,41 @@ TEST_F(LogQueueTest, TestAvailable2) {
 }
 
 
+TEST_F(LogQueueTest, TestReadWriteEmplace)
+{
+    struct Data
+    {
+        int i;
+        float f;
+    };
+
+    Data data;
+    
+    queue.WriteEmplace<Data>(2, 0.99f);
+    queue.ReadEmplace(&data);
+
+    ASSERT_EQ(data.i, 2);
+    ASSERT_FLOAT_EQ(data.f, 0.99f);
+}
+
+TEST_F(LogQueueTest, TestUserCallbacks)
+{
+    char src[] = "abcdefg";
+    char dest[sizeof(src)]; 
+
+    queue.WriteFrom([&src](char * queue_message_buffer, uint16_t & queue_message_size_out){
+        queue_message_size_out = sizeof(src);
+        std::memcpy(queue_message_buffer, src, queue_message_size_out);
+    });
+
+    queue.ReadTo([&dest](const char * queue_message_buffer, uint16_t queue_message_size){
+        std::memcpy(dest, queue_message_buffer, queue_message_size);
+    });
+
+    ASSERT_STREQ(src, dest);
+}
+
+
 class MultiThreadTest : public testing::Test {
 public:
     using thread_fun = void (MultiThreadTest::* )(LogQueue__ &);
