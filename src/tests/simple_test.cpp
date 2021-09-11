@@ -26,5 +26,5 @@ int main()
     INFO("Cass");      // ok
 
 
-    // std::this_thread::sleep_for(std::chrono::milliseconds(350));
+    std::this_thread::sleep_for(std::chrono::milliseconds(350));
 }

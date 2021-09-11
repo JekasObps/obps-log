@@ -1,10 +1,17 @@
+### exclude all
 *
 
-!.gitignore
-!*.cpp
-!*.hpp
-!*.in
-!*.cmake
-!CMakeLists.txt
+### include some folders (recursive):
+!src
+!src/**
 
-ObpsLogConfig.hpp
+
+### include some file extentions:
+!**.md
+!**.in
+!**.cmake
+
+
+### include specific files (root dir):
+!.gitignore
+!CMakeLists.txt

@@ -8,7 +8,7 @@
 
 #include "ObpsLogConfig.hpp"
 #include "thread_pool.hpp"
-#include "log_queue.hpp"
+#include "ring_queue.hpp"
 
 
 #if defined(WIN32)
@@ -90,7 +90,7 @@ public:
 
     static LogPoolSptr GetDefaultThreadPoolInstance();
 
-    using LogQueue_ = LogQueue<MAX_MSG_SIZE>; 
+    using LogQueue_ = RingQueue<MAX_MSG_SIZE>; 
     using LogQueueSptr = std::shared_ptr<LogQueue_>;
     
     static LogQueueSptr GetDefaultQueueInstance();

@@ -26,6 +26,7 @@ public:
     LogScopeDestroyer& operator=(const LogScopeDestroyer&) = delete;
     LogScopeDestroyer(LogScopeDestroyer&&) = delete;
     LogScopeDestroyer& operator=(LogScopeDestroyer&&) = delete;
+
 };
 
 } // namespace obps
