@@ -1,0 +1,6 @@
+[submodule "build_scripts"]
+	path = build_scripts
+	url = https://github.com/JekasObps/build-scripts.git
+[submodule "data_structures"]
+	path = data_structures
+	url = https://github.com/JekasObps/obps-data-structures.git
