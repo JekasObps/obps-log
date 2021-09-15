@@ -7,6 +7,7 @@
 
 
 #include "ObpsLogConfig.hpp"
+#include "log_registry.hpp"
 #include "thread_pool.hpp"
 #include "ring_queue.hpp"
 
@@ -92,8 +93,10 @@ public:
 
     using LogQueue_ = RingQueue<MAX_MSG_SIZE>; 
     using LogQueueSptr = std::shared_ptr<LogQueue_>;
-    
     static LogQueueSptr GetDefaultQueueInstance();
+    
+    using LogRegistrySptr = std::shared_ptr<LogRegistry>;
+    static LogRegistrySptr GetLogRegistry();
 
     static FormatSignature default_format;
     static FormatSignature JSON;
@@ -139,9 +142,38 @@ public:
             LogLevel level;                     
             FilenameOrStream file_or_stream;    
             // defaults:   
-            OutputModifier mod = OutputModifier::NONE;
-            LogQueueSptr queue = GetDefaultQueueInstance();               
-            FormatSignature* format = &LogBase::default_format;
+            OutputModifier mod;
+            LogQueueSptr queue;               
+            FormatSignature* format;
+
+            // default queue constructor
+            OutputSpec(LogLevel lvl,
+                FilenameOrStream fs,
+                LogQueueSptr q = GetDefaultQueueInstance(),
+                OutputModifier m = OutputModifier::NONE,
+                FormatSignature* fmt = &LogBase::default_format
+                )
+              : level(lvl)
+              , file_or_stream(fs)
+              , mod(m)
+              , queue(q)
+              , format(fmt)
+              {}
+
+            // special queue constructor
+            OutputSpec(LogLevel lvl, 
+                FilenameOrStream fs, 
+                const std::string queue_id,
+                const size_t queue_size,
+                OutputModifier m = OutputModifier::NONE,
+                FormatSignature* fmt = &LogBase::default_format
+                )
+              : level(lvl)
+              , file_or_stream(fs)
+              , mod(m)
+              , queue(GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
+              , format(fmt)
+              {}
         };
 
         LogSpecs(std::initializer_list<OutputSpec> outputs, LogPoolSptr pool = GetDefaultThreadPoolInstance())
@@ -154,8 +186,8 @@ public:
 
 }; // class LogBase
 
-std::string MakeLogFileName(const std::string& prefix_name);
-std::string GetTimeStr(const char* fmt, const std::time_t stamp) noexcept;
+std::string make_log_filename(const std::string& prefix_name);
+std::string get_time_string(const char* fmt, const std::time_t stamp) noexcept;
 const std::time_t get_timestamp() noexcept;
 
 

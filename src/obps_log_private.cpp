@@ -66,14 +66,12 @@ Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std:
     return LoggerThreadStatus_::RUNNING;
 }
 
-
-
-std::string MakeLogFileName(const std::string& prefix_name)
+std::string make_log_filename(const std::string& prefix_name)
 {
-    return prefix_name + "-" + GetTimeStr("%F", get_timestamp()) + ".log";
+    return prefix_name + "-" + get_time_string("%F", get_timestamp()) + ".log";
 }
 
-std::string GetTimeStr(const char* fmt, const std::time_t stamp) noexcept
+std::string get_time_string(const char* fmt, const std::time_t stamp) noexcept
 {
     tm date_info;
     

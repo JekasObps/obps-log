@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 
 #include "obps_log_private.hpp"
 
@@ -15,6 +14,8 @@ public:
     ~LogScopeDestroyer()
     {
         LogBase::GetDefaultQueueInstance()->ShutDown();
+        LogBase::GetLogRegistry()->WipeAllQueues();
+        
         LogBase::GetDefaultThreadPoolInstance()->ShutDown();
         // + also shutdown user defined pools if any in the future 
     }

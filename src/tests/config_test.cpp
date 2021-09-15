@@ -24,7 +24,4 @@ int main()
     test1();
     test1();
     INFO("Cass");      // ok
-
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(350));
 }

@@ -23,17 +23,18 @@
         obps::LogScopeDestroyer _LOG_DESTROYER_ID
     
     /*
-    *   Create static log in global scope.  TODO:  
+    *   Create log in global scope.  TODO:  
     */
-    #define GLOBAL_LOG(level, file_name_or_stream, ...) \
-        // static std::shared_ptr<obps::Log> _GLOBAL_LOG_ID = std::make_shared<obps::Log>(\
-        //     obps::LogBase::LogSpecs{file_name_or_stream, obps::LogLevel::level, __VA_ARGS__})
+    #define GLOBAL_LOG(...) \
+        obps::Log _GLOBAL_LOG_ID({__VA_ARGS__}); \
+        obps::Log& get_global_log {return _GLOBAL_LOG_ID; } 
+        // getter helps to ensure that a global log has been initialized on cross translation unit access 
 
     /*
     *   Call at the beginning of the logging scope
     */
     #define SCOPE_LOG(...) \
-        static auto _SCOPE_LOG_ID = obps::Log({__VA_ARGS__})
+        static obps::Log _SCOPE_LOG_ID({__VA_ARGS__})
 
 #else
     #define OBPS_LOG_INIT() ;

@@ -15,13 +15,22 @@ foreach(level ${__LOG_LEVELS})
 
     list(APPEND OBPS_LOG_MACROS__ 
         "    #define ${level}(...) _SCOPE_LOG_ID.Write(obps::LogLevel::${level}, __VA_ARGS__)"
+        "    #define G_${level}(...) get_global_log().Write(obps::LogLevel::${level}, __VA_ARGS__)"
     )
 
     if (level STREQUAL "DEBUG")
-        list(APPEND OBPS_LOG_MACROS__ "#else" "    #define DEBUG(...)" "#endif // DEBUG_MODE")
+        list(APPEND OBPS_LOG_MACROS__ 
+            "#else" 
+            "    #define DEBUG(...) {}" 
+            "    #define G_DEBUG(...) {}" 
+            "#endif // DEBUG_MODE"
+        )
     endif()
         
-    list(APPEND OBPS_LOG_MACROS_OFF__ "    #define ${level}(...) {}" )
+    list(APPEND OBPS_LOG_MACROS_OFF__ 
+        "    #define ${level}(...) {}"
+        "    #define G_${level}(...) {}"
+    )
 endforeach()
 
 string(REPLACE ";" "\n" OBPS_LOG_MACROS__ "${OBPS_LOG_MACROS__}")

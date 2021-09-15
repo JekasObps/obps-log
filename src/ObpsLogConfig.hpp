@@ -3,8 +3,8 @@
 *******************************************************************************/
 #pragma once
 
-#define ObpsLog_VERSION_MAJOR 1
-#define ObpsLog_VERSION_MINOR 0
+#define ObpsLog_VERSION_MAJOR 
+#define ObpsLog_VERSION_MINOR 
 
 #define DEFAULT_QUEUE_SIZE 64
 #define MAX_MSG_SIZE 256
@@ -20,18 +20,29 @@
 
 #ifdef LOG_ON
     #define ERROR(...) _SCOPE_LOG_ID.Write(obps::LogLevel::ERROR, __VA_ARGS__)
+    #define G_ERROR(...) get_global_log().Write(obps::LogLevel::ERROR, __VA_ARGS__)
     #define WARN(...) _SCOPE_LOG_ID.Write(obps::LogLevel::WARN, __VA_ARGS__)
+    #define G_WARN(...) get_global_log().Write(obps::LogLevel::WARN, __VA_ARGS__)
     #define INFO(...) _SCOPE_LOG_ID.Write(obps::LogLevel::INFO, __VA_ARGS__)
+    #define G_INFO(...) get_global_log().Write(obps::LogLevel::INFO, __VA_ARGS__)
     #define USER_LEVEL(...) _SCOPE_LOG_ID.Write(obps::LogLevel::USER_LEVEL, __VA_ARGS__)
+    #define G_USER_LEVEL(...) get_global_log().Write(obps::LogLevel::USER_LEVEL, __VA_ARGS__)
 #if defined(DEBUG_MODE) || !defined(NDEBUG)
     #define DEBUG(...) _SCOPE_LOG_ID.Write(obps::LogLevel::DEBUG, __VA_ARGS__)
+    #define G_DEBUG(...) get_global_log().Write(obps::LogLevel::DEBUG, __VA_ARGS__)
 #else
-    #define DEBUG(...)
+    #define DEBUG(...) {}
+    #define G_DEBUG(...) {}
 #endif // DEBUG_MODE
 #else
     #define ERROR(...) {}
+    #define G_ERROR(...) {}
     #define WARN(...) {}
+    #define G_WARN(...) {}
     #define INFO(...) {}
+    #define G_INFO(...) {}
     #define USER_LEVEL(...) {}
+    #define G_USER_LEVEL(...) {}
     #define DEBUG(...) {}
+    #define G_DEBUG(...) {}
 #endif //LOG_ON

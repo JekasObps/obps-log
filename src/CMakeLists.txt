@@ -1,7 +1,8 @@
 # define library interface and linking options
 add_library(obps_log STATIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/obps_log_private.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/log_base.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/obps_log_private.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/log_registry.cpp
 )
 
 
@@ -13,4 +14,4 @@ if (LINUX)
     target_link_libraries(obps_log PRIVATE pthread)
 endif()
 
-target_link_libraries(obps_log PRIVATE thread_pool ring_queue)
+target_link_libraries(obps_log PUBLIC thread_pool ring_queue)
