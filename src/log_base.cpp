@@ -80,4 +80,27 @@ std::unique_ptr<std::ostream> LogBase::OpenFileStream(const std::string& logname
     return std::move(file);
 }
 
+std::string make_log_filename(const std::string& prefix_name)
+{
+    return prefix_name + "-" + get_time_string("%F", get_timestamp()) + ".log";
+}
+
+std::string get_time_string(const char* fmt, const std::time_t stamp) noexcept
+{
+    tm date_info;
+    
+    __localtime(&date_info, &stamp);
+    
+    char timestr_buffer[128];
+    strftime(timestr_buffer, 128, fmt, &date_info);
+
+    return timestr_buffer;
+}
+
+const std::time_t get_timestamp() noexcept
+{
+    const auto date = std::chrono::system_clock::now();
+    return std::chrono::system_clock::to_time_t(date);
+}
+
 } // namespace obps
