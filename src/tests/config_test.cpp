@@ -3,8 +3,6 @@
 #include <chrono>
 #include <thread>
 
-// GLOBAL_LOG(ERROR, std::cerr);
-
 // simple test to check enabling and disabling logging 
 void test1()
 {
