@@ -70,9 +70,11 @@ void LogBase::JSON(std::ostream& out, const std::time_t ts, const LogLevel level
         << "\n},\n";
 };
 
-std::unique_ptr<std::ostream> LogBase::OpenFileStream(const std::string& logname)
+std::unique_ptr<std::ostream> LogBase::OpenFileStream(fs::path log_path)
 {
-    auto file = std::make_unique<std::ofstream>(make_log_filename(logname), std::ios::app);
+    auto&& log_name = log_path.filename();
+    log_path.replace_filename(make_log_filename(log_name.string()));
+    auto file = std::make_unique<std::ofstream>(log_path, std::ios::app);
     if (file->fail())
     {
         throw std::runtime_error("Failed To Open LogFile!");

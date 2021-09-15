@@ -23,17 +23,17 @@ void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
 
 Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
 {
-    switch (o_spec.file_or_stream.Type)
+    switch (o_spec.path_or_stream.Type)
     {
-        case LogSpecs::OutputType::FILENAME: 
+        case LogSpecs::OutputType::PATH: 
         {
             return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format,
-                OpenFileStream(o_spec.file_or_stream.Value.Filename));
+                OpenFileStream(o_spec.path_or_stream.Value.Path));
         }
         case LogSpecs::OutputType::STREAM:
         {
             return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format, 
-                std::make_unique<std::ostream>(o_spec.file_or_stream.Value.Stream->rdbuf()));
+                std::make_unique<std::ostream>(o_spec.path_or_stream.Value.Stream->rdbuf()));
         }
         default:
             throw std::logic_error("FileOrStream::UnknownType");

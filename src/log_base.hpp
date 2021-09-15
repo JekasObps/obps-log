@@ -2,9 +2,9 @@
 
 #include <cstdlib>
 
+#include <filesystem>
+#include <vector>
 #include <iostream>
-#include <set>
-
 
 #include "ObpsLogConfig.hpp"
 #include "log_registry.hpp"
@@ -20,6 +20,8 @@
 
 namespace obps
 {
+
+namespace fs = std::filesystem;
 
 enum class LogLevel {OBPS_LOG_LEVELS};
 
@@ -84,7 +86,7 @@ public:
         ABORTED     // logger thread has aborted
     };
 
-    static std::unique_ptr<std::ostream> OpenFileStream(const std::string& logname);
+    static std::unique_ptr<std::ostream> OpenFileStream(fs::path log_path);
 
     using LogPool = ThreadPool<LoggerThreadStatus_, LoggerThreadStatus_::RUNNING, LoggerThreadStatus_::FINISHED, LoggerThreadStatus_::ABORTED>;
     using LogPoolSptr = std::shared_ptr<LogPool>;
@@ -108,39 +110,67 @@ public:
     
     struct LogSpecs
     {
-        enum class OutputType {FILENAME, STREAM};
+        enum class OutputType {PATH, STREAM};
         enum class OutputModifier {NONE, ISOLATED};
 
-        struct FilenameOrStream
+        struct PathOrStream
         {
-            FilenameOrStream()
-            {}
+            PathOrStream() = default; // Creates nullptr stream
 
-            FilenameOrStream(const char* filename)
-              : Type(OutputType::FILENAME) 
+            ~PathOrStream() // only path has to release resources
             {
-                Value.Filename = filename; 
+                if(Type == OutputType::PATH) {
+                    Value.Path.~path();
+                }
+            };
+
+            // determine which type variant to copy
+            PathOrStream(const PathOrStream& other) : Type(other.Type)
+            {
+                switch (Type)
+                {
+                    case OutputType::PATH: {
+                        Value.Path = other.Value.Path;
+                    } break;
+
+                    case OutputType::STREAM: {
+                        Value.Stream = other.Value.Stream;
+                    } break;
+
+                    default: 
+                        break;
+                }
             }
 
-            FilenameOrStream(std::ostream& stream)
+            // convertions for user experience 
+            // FIXME: there must be a way to use standard variant
+            // TODO:  try to use custom conversion functions 
+            PathOrStream(const fs::path& path)
+              : Type(OutputType::PATH) 
+            {
+                Value.Path = path; 
+            }
+
+            PathOrStream(std::ostream& stream)
               : Type(OutputType::STREAM) 
             {
                 Value.Stream = &stream; 
             }
             
-            // custom variant pattern
-            union {
-                const char*   Filename;
-                std::ostream* Stream;
-            } Value;
+            OutputType Type = OutputType::STREAM;
 
-            OutputType Type;
-        }; // struct FilenameOrStream
+            // custom variant pattern
+            union Variant {
+                fs::path Path;
+                std::ostream* Stream = nullptr;
+                ~Variant() {}; // important dtor ( union doesn't know which type it's holding )
+            } Value;
+        }; // struct PathOrStream
 
         struct OutputSpec
         {
             LogLevel level;                     
-            FilenameOrStream file_or_stream;    
+            PathOrStream path_or_stream;    
             // defaults:   
             OutputModifier mod;
             LogQueueSptr queue;               
@@ -148,13 +178,13 @@ public:
 
             // default queue constructor
             OutputSpec(LogLevel lvl,
-                FilenameOrStream fs,
+                PathOrStream path_or_stream,
                 LogQueueSptr q = GetDefaultQueueInstance(),
                 OutputModifier m = OutputModifier::NONE,
                 FormatSignature* fmt = &LogBase::default_format
                 )
               : level(lvl)
-              , file_or_stream(fs)
+              , path_or_stream(path_or_stream)
               , mod(m)
               , queue(q)
               , format(fmt)
@@ -162,14 +192,14 @@ public:
 
             // special queue constructor
             OutputSpec(LogLevel lvl, 
-                FilenameOrStream fs, 
+                PathOrStream path_or_stream, 
                 const std::string queue_id,
                 const size_t queue_size,
                 OutputModifier m = OutputModifier::NONE,
                 FormatSignature* fmt = &LogBase::default_format
                 )
               : level(lvl)
-              , file_or_stream(fs)
+              , path_or_stream(path_or_stream)
               , mod(m)
               , queue(GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
               , format(fmt)
@@ -177,7 +207,7 @@ public:
         };
 
         LogSpecs(std::initializer_list<OutputSpec> outputs, LogPoolSptr pool = GetDefaultThreadPoolInstance())
-          : _Outputs(outputs), _ThreadPool(pool)
+          : _Outputs(outputs),  _ThreadPool(pool)
         {}
 
         std::vector<OutputSpec> _Outputs;
