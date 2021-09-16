@@ -77,7 +77,7 @@ std::unique_ptr<std::ostream> LogBase::OpenFileStream(fs::path log_path)
     auto file = std::make_unique<std::ofstream>(log_path, std::ios::app);
     if (file->fail())
     {
-        throw std::runtime_error("Failed To Open LogFile!");
+        throw std::runtime_error(std::format("Failed To Open LogFile! with path: {}", log_path.string()));
     }
     return std::move(file);
 }
