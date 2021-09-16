@@ -3,6 +3,8 @@
 #include <chrono>
 #include <thread>
 
+GLOBAL_LOG({LogLevel::ERROR, std::cerr});
+
 // simple test to check enabling and disabling logging 
 void test1()
 {
@@ -15,11 +17,12 @@ void test1()
 int main()
 {
     SCOPE_LOG({LogLevel::INFO, std::cout});
-    OBPS_LOG_INIT();
     INFO("Cass");      // ok
     test1();
     test1();
     test1();
     test1();
     INFO("Cass");      // ok
+    
+    OBPS_LOG_TEARDOWN();
 }

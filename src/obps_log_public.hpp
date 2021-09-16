@@ -19,15 +19,17 @@
     *   User must place this macro at the beginning of the main function.
     *   or another scope that will limit log opperation.
     */
-    #define OBPS_LOG_INIT() \
-        obps::LogScopeDestroyer _LOG_DESTROYER_ID
+    #define OBPS_LOG_TEARDOWN() []{\
+        obps::LogBase::GetDefaultQueueInstance()->ShutDown();\
+        obps::LogBase::GetLogRegistry()->WipeAllQueues();\
+        obps::LogBase::GetDefaultThreadPoolInstance()->ShutDown(); }()
     
     /*
     *   Create log in global scope.  TODO:  
     */
     #define GLOBAL_LOG(...) \
         obps::Log _GLOBAL_LOG_ID({__VA_ARGS__}); \
-        obps::Log& get_global_log {return _GLOBAL_LOG_ID; } 
+        obps::Log& get_global_log(){ return _GLOBAL_LOG_ID; } 
         // getter helps to ensure that a global log has been initialized on cross translation unit access 
 
     /*
@@ -37,7 +39,7 @@
         static obps::Log _SCOPE_LOG_ID({__VA_ARGS__})
 
 #else
-    #define OBPS_LOG_INIT() ;
+    #define OBPS_LOG_TEARDOWN() ;
     #define GLOBAL_LOG(...) ; 
     #define SCOPE_LOG(...) ;
 #endif // LOG_ON

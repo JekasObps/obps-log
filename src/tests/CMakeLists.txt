@@ -20,3 +20,4 @@ configuration_test(
     EXPECTED "^?"
 )
 
+add_definitions(-DLOG_ON)
