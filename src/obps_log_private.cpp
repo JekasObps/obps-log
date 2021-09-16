@@ -18,7 +18,11 @@ void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
 {
     auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));
 
-    m_Pool->RunTask<LogQueueSptr, std::shared_ptr<std::ostream>>(&Log::LogThread, std::get<2>(output), std::get<4>(output));
+    m_Pool->RunTask<LogQueueSptr, std::shared_ptr<std::ostream>>(
+        &Log::LogThread, 
+        std::get<2>(output), // LogQueueSptr
+        std::get<4>(output) // std::shared_ptr<std::ostream>
+    );
 }
 
 Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
@@ -33,7 +37,7 @@ Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
         case LogSpecs::OutputType::STREAM:
         {
             return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format, 
-                std::make_unique<std::ostream>(o_spec.path_or_stream.Value.Stream->rdbuf()));
+                std::make_shared<std::ostream>(o_spec.path_or_stream.Value.Stream->rdbuf()));
         }
         default:
             throw std::logic_error("FileOrStream::UnknownType");

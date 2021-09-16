@@ -115,7 +115,7 @@ public:
 
         struct PathOrStream
         {
-            PathOrStream() = default; // Creates nullptr stream
+            PathOrStream() = default;
 
             ~PathOrStream() // only path has to release resources
             {
@@ -146,23 +146,21 @@ public:
             // FIXME: there must be a way to use standard variant
             // TODO:  try to use custom conversion functions 
             PathOrStream(const fs::path& path)
-              : Type(OutputType::PATH) 
-            {
-                Value.Path = path; 
-            }
+              : Type(OutputType::PATH), Value(path) {}
 
             PathOrStream(std::ostream& stream)
-              : Type(OutputType::STREAM) 
-            {
-                Value.Stream = &stream; 
-            }
+              : Type(OutputType::STREAM), Value(&stream) {}
             
             OutputType Type = OutputType::STREAM;
 
             // custom variant pattern
             union Variant {
-                fs::path Path;
-                std::ostream* Stream = nullptr;
+                fs::path      Path;
+                std::ostream* Stream;
+
+                Variant(const fs::path p) : Path(p) {};
+                Variant(std::ostream* s) : Stream(s) {};
+                Variant() {};
                 ~Variant() {}; // important dtor ( union doesn't know which type it's holding )
             } Value;
         }; // struct PathOrStream
