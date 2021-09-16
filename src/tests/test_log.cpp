@@ -115,18 +115,23 @@ TEST_F(TestLog, TestMultipleTargers)
 
 TEST_F(TestLog, TestFileTarget)
 {
-    SCOPE_LOG({LogLevel::DEBUG, cwd / "logs" / "", "q1", 10}); // creating separate queues
+    const auto logdir = cwd / "logs";
+    const auto logname = "logfile";
+    const auto expected_log_path = logdir / obps::make_log_filename(logname);
 
+    fs::create_directory(logdir); // prepare directory on user side 
 
-    fs::path log_file = cwd / "logs" / obps::make_log_filename("");
-    
-    ASSERT_TRUE(fs::exists(log_file));
+    SCOPE_LOG({LogLevel::DEBUG, logdir / logname, "q1", 10}); // creating separate queues
+
+    ASSERT_TRUE(fs::exists(expected_log_path));
 
     DEBUG("some debug message!");   // out
 
     std::this_thread::sleep_for(10ms); // make sure that thread completed work
      
-    std::ifstream log_file_in(log_file);
+    std::ifstream log_file_in(expected_log_path);
+    log_file_in.sync(); // syncronizing changes made by log
+
     message.assign(std::istreambuf_iterator<char>(log_file_in), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex(".*DEBUG some debug message!\n"));
