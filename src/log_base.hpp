@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 
+#include <variant>
 #include <filesystem>
 #include <vector>
 #include <iostream>
@@ -113,56 +114,33 @@ public:
         enum class OutputType {PATH, STREAM};
         enum class OutputModifier {NONE, ISOLATED};
 
-        struct PathOrStream
+        class PathOrStream
         {
-            PathOrStream() = default;
+        public:
+            PathOrStream(fs::path path): m_Value(path) {}
+            PathOrStream(std::ostream& stream): m_Value(&stream) {}
 
-            ~PathOrStream() // only path has to release resources
+            bool isPath() const noexcept
             {
-                if(Type == OutputType::PATH) {
-                    Value.Path.~path();
-                }
-            };
-
-            // determine which type variant to copy
-            PathOrStream(const PathOrStream& other) : Type(other.Type)
-            {
-                switch (Type)
-                {
-                    case OutputType::PATH: {
-                        Value.Path = other.Value.Path;
-                    } break;
-
-                    case OutputType::STREAM: {
-                        Value.Stream = other.Value.Stream;
-                    } break;
-
-                    default: 
-                        break;
-                }
+                return std::holds_alternative<fs::path>(m_Value);
             }
 
-            // convertions for user experience 
-            // FIXME: there must be a way to use standard variant
-            // TODO:  try to use custom conversion functions 
-            PathOrStream(const fs::path& path)
-              : Type(OutputType::PATH), Value(path) {}
-
-            PathOrStream(std::ostream& stream)
-              : Type(OutputType::STREAM), Value(&stream) {}
+            bool isStream() const noexcept
+            {
+                return ! isPath();
+            }
             
-            OutputType Type = OutputType::STREAM;
+            auto getPath() const
+            {
+                return std::get<fs::path>(m_Value);
+            }
 
-            // custom variant pattern
-            union Variant {
-                fs::path      Path;
-                std::ostream* Stream;
-
-                Variant(const fs::path p) : Path(p) {};
-                Variant(std::ostream* s) : Stream(s) {};
-                Variant() {};
-                ~Variant() {}; // important dtor ( union doesn't know which type it's holding )
-            } Value;
+            auto getStream() const
+            {
+                return std::get<std::ostream*>(m_Value);
+            }
+            
+            std::variant<fs::path, std::ostream*> m_Value;
         }; // struct PathOrStream
 
         struct OutputSpec
