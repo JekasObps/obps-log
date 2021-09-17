@@ -34,4 +34,13 @@ LogRegistry::~LogRegistry()
 
 }
 
+// Generates queue id
+//
+//
+std::string LogRegistry::GenerateQueueUid()
+{
+    static std::atomic<size_t> count = {0};
+    return std::format("q_{:#}", count.fetch_add(1, std::memory_order_relaxed));
+}
+
 } // namespace obps

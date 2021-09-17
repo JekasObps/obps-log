@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <unordered_map>
 
 #include "ObpsLogConfig.hpp"
@@ -15,7 +16,10 @@ public:
     using LogQueueSptr = std::shared_ptr<LogQueue_>;
 
     LogQueueSptr CreateAndGetQueue(const std::string id, const size_t size);
+
     void WipeAllQueues();
+
+    static std::string GenerateQueueUid();
 
     // Non-copyable
     LogRegistry(const LogRegistry&) = delete;
