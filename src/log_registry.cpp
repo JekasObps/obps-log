@@ -24,9 +24,10 @@ void LogRegistry::WipeAllQueues()
     m_Queues.clear();
 }
 
-// Generates queue id
-//
-//
+// Generates queue id consisting of prefix "q_" and hex incrementor.
+// NOTE{Jekas}: thoughts about making it to use thread id of a log writer thread for the uniqueness, or some uid library
+//  for now atomic counter for thread safeness is enough.
+// 
 std::string LogRegistry::GenerateQueueUid()
 {
     static std::atomic<size_t> count = {0};
