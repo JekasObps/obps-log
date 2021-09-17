@@ -2,10 +2,9 @@
 ### TESTING: ###
 ################
 
-setup_testing()
+setup_testing(FLAGS "-DLOG_ON")
 
 # additional tests:
-
 configuration_test(
     TEST test_logging_enabled 
     SOURCE config_test.cpp 
@@ -19,5 +18,3 @@ configuration_test(
     LINK_LIBS PUBLIC obps_log
     EXPECTED "^?"
 )
-
-add_definitions(-DLOG_ON)
