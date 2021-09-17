@@ -25,11 +25,11 @@
         obps::LogBase::GetDefaultThreadPoolInstance()->ShutDown(); }()
     
     /*
-    *   Create log in global scope.  TODO:  
+    *   Create log in global scope.
     */
     #define GLOBAL_LOG(...) \
         obps::Log _GLOBAL_LOG_ID({__VA_ARGS__}); \
-        obps::Log& get_global_log(){ return _GLOBAL_LOG_ID; } 
+        obps::Log& get_global_log(){ return _GLOBAL_LOG_ID; } \
         // getter helps to ensure that a global log has been initialized on cross translation unit access 
 
     /*
