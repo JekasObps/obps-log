@@ -2,8 +2,6 @@
 
 #include "obps_log_public.hpp"
 
-// GLOBAL_LOG({LogLevel::ERROR, std::cerr});
-
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -22,7 +20,6 @@ namespace fs = std::filesystem;
 #include <chrono>
 using namespace std::chrono_literals;
 
-
 class TestLog : public ::testing::Test
 {
 protected:
@@ -35,6 +32,9 @@ protected:
 
     std::string message, word;
     const fs::path cwd = std::filesystem::current_path();
+    const fs::path logdir = cwd / "logs";
+    const fs::path logname = "logfile";
+    const fs::path expected_log_path = logdir / obps::make_log_filename(logname.string());
 
     void SetUp() override
     {
@@ -89,12 +89,10 @@ TEST_F(TestLog, TestLevels)
 
 TEST_F(TestLog, TestMultipleTargers)
 {
-    // SCOPE_LOG({LogLevel::DEBUG, out}, // considered a bed usage! You can't logicaly have two output targets sharing same queue. 
-    //          {LogLevel::WARN, err}); //  logger threads do not destinguish between messages they take from queue.
-    // FIXME: poential for changing API
+    auto q_uid = obps::LogRegistry::GenerateQueueUid();
 
-    SCOPE_LOG({LogLevel::DEBUG, out, "q1", 10}, // creating separate queues
-              {LogLevel::WARN, err, "q2", 10});
+    SCOPE_LOG({LogLevel::DEBUG, out}, // creates queue with default_queue_size and unique id: q_<hex>
+              {LogLevel::WARN, err, 10, q_uid}); // example of creating queue with custom size and manual queue_uid generation for later use.
 
     DEBUG("some debug message!");   // out
     INFO("some info message!");     // out
@@ -115,23 +113,19 @@ TEST_F(TestLog, TestMultipleTargers)
 
 TEST_F(TestLog, TestFileTarget)
 {
-    const auto logdir = cwd / "logs";
-    const auto logname = "logfile";
-    const auto expected_log_path = logdir / obps::make_log_filename(logname);
+    fs::create_directory(logdir);  // prepare directory on user side
+    fs::remove(expected_log_path); // clean test
 
-    fs::create_directory(logdir); // prepare directory on user side 
-
-    SCOPE_LOG({LogLevel::DEBUG, logdir / logname, "q1", 10}); // creating separate queues
+    SCOPE_LOG({LogLevel::DEBUG, logdir / logname});
 
     ASSERT_TRUE(fs::exists(expected_log_path));
 
-    DEBUG("some debug message!");   // out
+    DEBUG_SYNC("some debug message!");   // out
 
     std::this_thread::sleep_for(10ms); // make sure that thread completed work
      
-    std::ifstream log_file_in(expected_log_path);
-    log_file_in.sync(); // syncronizing changes made by log
-
+    std::fstream log_file_in(expected_log_path);
+    
     message.assign(std::istreambuf_iterator<char>(log_file_in), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex(".*DEBUG some debug message!\n"));
