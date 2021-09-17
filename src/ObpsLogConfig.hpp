@@ -19,17 +19,27 @@
 
 
 #ifdef LOG_ON
-    #define ERROR(...) _SCOPE_LOG_ID.Write(obps::LogLevel::ERROR, __VA_ARGS__)
-    #define G_ERROR(...) get_global_log().Write(obps::LogLevel::ERROR, __VA_ARGS__)
-    #define WARN(...) _SCOPE_LOG_ID.Write(obps::LogLevel::WARN, __VA_ARGS__)
-    #define G_WARN(...) get_global_log().Write(obps::LogLevel::WARN, __VA_ARGS__)
-    #define INFO(...) _SCOPE_LOG_ID.Write(obps::LogLevel::INFO, __VA_ARGS__)
-    #define G_INFO(...) get_global_log().Write(obps::LogLevel::INFO, __VA_ARGS__)
-    #define USER_LEVEL(...) _SCOPE_LOG_ID.Write(obps::LogLevel::USER_LEVEL, __VA_ARGS__)
-    #define G_USER_LEVEL(...) get_global_log().Write(obps::LogLevel::USER_LEVEL, __VA_ARGS__)
+    #define ERROR(...) _SCOPE_LOG_ID.Write(obps::LogLevel::ERROR, false, __VA_ARGS__)
+    #define G_ERROR(...) get_global_log().Write(obps::LogLevel::ERROR, false, __VA_ARGS__)
+    #define ERROR_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::ERROR, true, __VA_ARGS__)
+    #define G_ERROR_SYNC(...) get_global_log().Write(obps::LogLevel::ERROR, true, __VA_ARGS__)
+    #define WARN(...) _SCOPE_LOG_ID.Write(obps::LogLevel::WARN, false, __VA_ARGS__)
+    #define G_WARN(...) get_global_log().Write(obps::LogLevel::WARN, false, __VA_ARGS__)
+    #define WARN_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::WARN, true, __VA_ARGS__)
+    #define G_WARN_SYNC(...) get_global_log().Write(obps::LogLevel::WARN, true, __VA_ARGS__)
+    #define INFO(...) _SCOPE_LOG_ID.Write(obps::LogLevel::INFO, false, __VA_ARGS__)
+    #define G_INFO(...) get_global_log().Write(obps::LogLevel::INFO, false, __VA_ARGS__)
+    #define INFO_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::INFO, true, __VA_ARGS__)
+    #define G_INFO_SYNC(...) get_global_log().Write(obps::LogLevel::INFO, true, __VA_ARGS__)
+    #define USER_LEVEL(...) _SCOPE_LOG_ID.Write(obps::LogLevel::USER_LEVEL, false, __VA_ARGS__)
+    #define G_USER_LEVEL(...) get_global_log().Write(obps::LogLevel::USER_LEVEL, false, __VA_ARGS__)
+    #define USER_LEVEL_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::USER_LEVEL, true, __VA_ARGS__)
+    #define G_USER_LEVEL_SYNC(...) get_global_log().Write(obps::LogLevel::USER_LEVEL, true, __VA_ARGS__)
 #if defined(DEBUG_MODE) || !defined(NDEBUG)
-    #define DEBUG(...) _SCOPE_LOG_ID.Write(obps::LogLevel::DEBUG, __VA_ARGS__)
-    #define G_DEBUG(...) get_global_log().Write(obps::LogLevel::DEBUG, __VA_ARGS__)
+    #define DEBUG(...) _SCOPE_LOG_ID.Write(obps::LogLevel::DEBUG, false, __VA_ARGS__)
+    #define G_DEBUG(...) get_global_log().Write(obps::LogLevel::DEBUG, false, __VA_ARGS__)
+    #define DEBUG_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::DEBUG, true, __VA_ARGS__)
+    #define G_DEBUG_SYNC(...) get_global_log().Write(obps::LogLevel::DEBUG, true, __VA_ARGS__)
 #else
     #define DEBUG(...) {}
     #define G_DEBUG(...) {}
@@ -37,12 +47,22 @@
 #else
     #define ERROR(...) {}
     #define G_ERROR(...) {}
+    #define ERROR_SYNC(...) {}
+    #define G_ERROR_SYNC(...) {}
     #define WARN(...) {}
     #define G_WARN(...) {}
+    #define WARN_SYNC(...) {}
+    #define G_WARN_SYNC(...) {}
     #define INFO(...) {}
     #define G_INFO(...) {}
+    #define INFO_SYNC(...) {}
+    #define G_INFO_SYNC(...) {}
     #define USER_LEVEL(...) {}
     #define G_USER_LEVEL(...) {}
+    #define USER_LEVEL_SYNC(...) {}
+    #define G_USER_LEVEL_SYNC(...) {}
     #define DEBUG(...) {}
     #define G_DEBUG(...) {}
+    #define DEBUG_SYNC(...) {}
+    #define G_DEBUG_SYNC(...) {}
 #endif //LOG_ON
