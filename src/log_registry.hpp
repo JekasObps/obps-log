@@ -29,8 +29,8 @@ public:
     LogRegistry(LogRegistry&&) = delete;
     LogRegistry& operator=(LogRegistry&&) = delete;
 public:
-    LogRegistry();
-    ~LogRegistry();
+    LogRegistry() = default;
+    ~LogRegistry() = default;
 private:
     std::unordered_map<std::string, LogQueueSptr> m_Queues;
 };

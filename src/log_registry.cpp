@@ -24,16 +24,6 @@ void LogRegistry::WipeAllQueues()
     m_Queues.clear();
 }
 
-LogRegistry::LogRegistry()
-{
-
-}
-
-LogRegistry::~LogRegistry()
-{
-
-}
-
 // Generates queue id
 //
 //
