@@ -49,19 +49,21 @@ public:
 protected:
     struct MessageData
     {
-        std::time_t             TimeStamp;
-        LogLevel                Level;
-        std::thread::id         Tid;
-        FormatSignature*        Format;
-        char                    Text[text_field_size];
+        std::time_t       TimeStamp;
+        LogLevel          Level;
+        std::thread::id   Tid;
+        FormatSignature*  Format;
+        char              Text[text_field_size];
+        bool              Sync; // used to enable flushes on write
 
         MessageData(){};
         
-        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatSignature* const fmt, const char * const src) 
+        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatSignature* const fmt, const char * const src, bool sync = false) 
           : TimeStamp(ts)
           , Level(lvl)
           , Tid(tid)
           , Format(fmt)
+          , Sync(sync)
         {
             std::memcpy(Text, src, text_field_size);
         }
@@ -71,6 +73,7 @@ protected:
           , Level(other.Level)
           , Tid(other.Tid)
           , Format(other.Format)
+          , Sync(other.Sync)
         {
             std::memcpy(Text, other.Text, text_field_size);
         }
@@ -145,32 +148,17 @@ public:
 
         struct OutputSpec
         {
-            LogLevel level;                     
-            PathOrStream path_or_stream;    
-            // defaults:   
-            OutputModifier mod;
-            LogQueueSptr queue;               
+            LogLevel         level;                     
+            PathOrStream     path_or_stream;    
+  
+            OutputModifier   mod;
+            LogQueueSptr     queue;               
             FormatSignature* format;
 
-            // default queue constructor
-            OutputSpec(LogLevel lvl,
-                PathOrStream path_or_stream,
-                LogQueueSptr q = GetDefaultQueueInstance(),
-                OutputModifier m = OutputModifier::NONE,
-                FormatSignature* fmt = &LogBase::default_format
-                )
-              : level(lvl)
-              , path_or_stream(path_or_stream)
-              , mod(m)
-              , queue(q)
-              , format(fmt)
-              {}
-
-            // special queue constructor
             OutputSpec(LogLevel lvl, 
                 PathOrStream path_or_stream, 
-                const std::string queue_id,
-                const size_t queue_size,
+                const size_t queue_size = default_queue_size,
+                const std::string queue_id = LogRegistry::GenerateQueueUid(),
                 OutputModifier m = OutputModifier::NONE,
                 FormatSignature* fmt = &LogBase::default_format
                 )
