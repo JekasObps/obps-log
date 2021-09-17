@@ -7,6 +7,8 @@
 #include <iomanip>
 
 
+#include <atomic>
+
 #include "ObpsLogConfig.hpp"
 #include "log_base.hpp"
 
@@ -20,9 +22,9 @@ public:
     ~Log();
 
     void AddOutput(const LogSpecs::OutputSpec & o_spec);
-    
+
     template <typename ...Args>
-    void Write(LogLevel level, Args ...args);
+    void Write(LogLevel level, bool sync, Args ...args);
 private:
     using LogThreadFunction = LoggerThreadStatus_ (LogQueueSptr, std::shared_ptr<std::ostream> output);
     static LogThreadFunction LogThread;
@@ -36,7 +38,7 @@ private:
     >;
 
     template <typename ...Args>
-    MessageData BuildMessage(LogLevel level, FormatSignature* format, Args ...args);
+    MessageData BuildMessage(LogLevel level, FormatSignature* format, bool sync, Args ...args);
 
     static Output CreateOutput(const LogSpecs::OutputSpec & o_spec);
 
@@ -45,19 +47,19 @@ private:
 };
 
 template <typename ...Args>
-void Log::Write(LogLevel level, Args ...args)
+void Log::Write(LogLevel level, bool sync, Args ...args)
 {
     for(auto && [lvl, mod, que, fmt, out] : m_Outputs)
     {
         if (lvl >= level) // if level is relevant for current output
         {
-            que->WriteEmplace<MessageData>(std::move(BuildMessage(level, fmt, args...)));
+            que->WriteEmplace<MessageData>(std::move(BuildMessage(level, fmt, sync, args...)));
         }
     }
 }
 
 template <typename ...Args>
-Log::MessageData Log::BuildMessage(LogLevel level, FormatSignature* format, Args ...args)
+Log::MessageData Log::BuildMessage(LogLevel level, FormatSignature* format, bool sync, Args ...args)
 {
     std::stringstream serializer;
     std::string text;
@@ -74,7 +76,8 @@ Log::MessageData Log::BuildMessage(LogLevel level, FormatSignature* format, Args
         level, 
         std::this_thread::get_id(),
         format,
-        text.c_str()
+        text.c_str(),
+        sync
     };
 
     return message_data;

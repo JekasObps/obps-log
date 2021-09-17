@@ -3,6 +3,8 @@
 namespace obps
 {
 
+using namespace std::chrono_literals;
+
 Log::Log(const LogSpecs& specs) : m_Pool(specs._ThreadPool)
 {
     for (auto&& o_spec : specs._Outputs)
@@ -28,7 +30,7 @@ void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
 Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
 {
     const auto& target = o_spec.path_or_stream;
-    if(target.isPath())
+    if (target.isPath())
     {
         return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format,
             OpenFileStream(target.getPath()));
@@ -46,7 +48,12 @@ Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std:
     auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){
         MessageData message;
         LogQueue_::Construct<MessageData>(&message, buffer);
+
         message.Format(*output, message.TimeStamp, message.Level, message.Tid, message.Text);
+        if (message.Sync)
+        {
+            output->flush();
+        }
     });
         
     if (status == LogQueue_::OperationStatus::SHUTDOWN)
@@ -54,10 +61,6 @@ Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std:
         output->flush();
         return LoggerThreadStatus_::FINISHED;
     }
-
-#ifdef FLUSH_EVERY_MESSAGE
-    output->flush(); 
-#endif // FLUSH_EVERY_MESSAGE
 
     if (output->fail())
     {
