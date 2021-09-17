@@ -4,7 +4,6 @@
 
 #ifdef LOG_ON
     #include "obps_log_private.hpp"
-    #include "log_scope_destroyer.hpp"
 
     #define CONCAT(a, b) a ## b
     #define EXP(line, suf) CONCAT(line, suf)
@@ -12,7 +11,6 @@
     #define _GLOBAL_LOG_ID __obps_global_log
     #define _GLOBAL_LOG_INIT_FUNC __obps_global_log_init
     #define _SCOPE_LOG_ID __obps_scope_log
-    #define _LOG_DESTROYER_ID __obps_log_destroyer
 
     /*
     *   Register propper log shutdown. 
