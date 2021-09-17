@@ -87,7 +87,7 @@ TEST_F(TestLog, TestLevels)
 }
 
 
-TEST_F(TestLog, TestMultipleTargers)
+TEST_F(TestLog, TestMultipleTargets)
 {
     auto q_uid = obps::LogRegistry::GenerateQueueUid();
 
