@@ -9,8 +9,6 @@
 
 #include "ObpsLogConfig.hpp"
 #include "log_registry.hpp"
-#include "thread_pool.hpp"
-#include "ring_queue.hpp"
 
 
 #if defined(WIN32)
@@ -30,7 +28,7 @@ constexpr auto PrettyLevel(const LogLevel level)
 {
     switch (level)
     {
-        OBPS_LOG_PRETTY_LEVELS; // !important semi-column
+        OBPS_LOG_PRETTY_LEVELS
         // generates: 
         //    case LogLevel::<UserDefinedLevel>: return "<UserDefinedLevel>";
         default: 
@@ -41,24 +39,30 @@ constexpr auto PrettyLevel(const LogLevel level)
 class LogBase
 {
 public:
+    using LoggerThreadStatus = LogRegistry::LoggerThreadStatus;
+    using LogPool = LogRegistry::LogPool;
+    using LogPoolSptr = LogRegistry::LogPoolSptr;
+    using LogQueue = LogRegistry::LogQueue;
+    using LogQueueSptr = LogRegistry::LogQueueSptr;
+
+
     static constexpr size_t text_field_size = 256;
-    static constexpr size_t default_queue_size = DEFAULT_QUEUE_SIZE;
-    using FormatSignature = void (std::ostream&, const std::time_t, const LogLevel, const std::thread::id, const char* text);
-    using Formatter = std::function<FormatSignature>;
+    using FormatFunction = void (std::ostream&, const std::time_t, const LogLevel, const std::thread::id, const char* text);
+    using FormatFunctionPtr = FormatFunction*;
 
 protected:
     struct MessageData
     {
-        std::time_t       TimeStamp;
-        LogLevel          Level;
-        std::thread::id   Tid;
-        FormatSignature*  Format;
-        char              Text[text_field_size];
-        bool              Sync; // used to enable flushes on write
+        std::time_t TimeStamp;
+        LogLevel Level;
+        std::thread::id Tid;
+        FormatFunctionPtr Format;
+        char Text[text_field_size];
+        bool Sync; // used to enable flushes on write
 
-        MessageData(){};
+        MessageData() = default;
         
-        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatSignature* const fmt, const char * const src, bool sync = false) 
+        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatFunctionPtr const fmt, const char * const src, bool sync = false)
           : TimeStamp(ts)
           , Level(lvl)
           , Tid(tid)
@@ -68,7 +72,7 @@ protected:
             std::memcpy(Text, src, text_field_size);
         }
 
-        MessageData(const MessageData& other) 
+        MessageData(const MessageData& other)
           : TimeStamp(other.TimeStamp)
           , Level(other.Level)
           , Tid(other.Tid)
@@ -79,42 +83,23 @@ protected:
         }
     }; // struct MessageData
 
-    LogBase(){}
-    ~LogBase(){}
+    LogBase() = default;
+    ~LogBase() = default;
 
 public:
-    enum class LoggerThreadStatus_ 
-    {
-        RUNNING,    // logger thread hasn't finished yet
-        FINISHED,   // logger thread has finished
-        ABORTED     // logger thread has aborted
-    };
-
     static std::unique_ptr<std::ostream> OpenFileStream(fs::path log_path);
 
-    using LogPool = ThreadPool<LoggerThreadStatus_, LoggerThreadStatus_::RUNNING, LoggerThreadStatus_::FINISHED, LoggerThreadStatus_::ABORTED>;
-    using LogPoolSptr = std::shared_ptr<LogPool>;
-
-    static LogPoolSptr GetDefaultThreadPoolInstance();
-
-    using LogQueue_ = RingQueue<MAX_MSG_SIZE>; 
-    using LogQueueSptr = std::shared_ptr<LogQueue_>;
-    static LogQueueSptr GetDefaultQueueInstance();
-    
-    using LogRegistrySptr = std::shared_ptr<LogRegistry>;
-    static LogRegistrySptr GetLogRegistry();
-
-    static FormatSignature default_format;
-    static FormatSignature JSON;
+    static FormatFunction default_format;
+    static FormatFunction JSON;
 
     LogBase(const LogBase&) = delete;
     LogBase& operator=(const LogBase&) = delete;
     LogBase(LogBase&&) = delete;
     LogBase& operator=(LogBase&&) = delete;
     
-    struct LogSpecs
+    class LogSpecs
     {
-        enum class OutputType {PATH, STREAM};
+    public:
         enum class OutputModifier {NONE, ISOLATED};
 
         class PathOrStream
@@ -146,36 +131,47 @@ public:
             std::variant<fs::path, std::ostream*> m_Value;
         }; // struct PathOrStream
 
-        struct OutputSpec
+        struct OutputSpecs
         {
-            LogLevel         level;                     
-            PathOrStream     path_or_stream;    
+            LogLevel level;                     
+            PathOrStream path_or_stream;    
   
-            OutputModifier   mod;
-            LogQueueSptr     queue;               
-            FormatSignature* format;
+            OutputModifier mod;
+            LogQueueSptr queue;               
+            FormatFunctionPtr format;
 
-            OutputSpec(LogLevel lvl, 
+            OutputSpecs(LogLevel lvl, 
                 PathOrStream path_or_stream, 
-                const size_t queue_size = default_queue_size,
+                const size_t queue_size = LogRegistry::default_queue_size,
                 const std::string queue_id = LogRegistry::GenerateQueueUid(),
                 OutputModifier m = OutputModifier::NONE,
-                FormatSignature* fmt = &LogBase::default_format
+                FormatFunctionPtr fmt = &LogBase::default_format
                 )
               : level(lvl)
               , path_or_stream(path_or_stream)
               , mod(m)
-              , queue(GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
+              , queue(LogRegistry::GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
               , format(fmt)
               {}
         };
 
-        LogSpecs(std::initializer_list<OutputSpec> outputs, LogPoolSptr pool = GetDefaultThreadPoolInstance())
-          : _Outputs(outputs),  _ThreadPool(pool)
+        LogSpecs(std::initializer_list<OutputSpecs> outputs, LogPoolSptr pool = LogRegistry::GetDefaultThreadPoolInstance())
+          : m_OutputSpecs(outputs),  m_LogPool(pool)
         {}
 
-        std::vector<OutputSpec> _Outputs;
-        LogPoolSptr             _ThreadPool;
+        std::vector<OutputSpecs>& GetOutputSpecs() noexcept
+        {
+            return m_OutputSpecs;
+        }
+
+        LogPoolSptr& GetLogPool() noexcept
+        {
+            return m_LogPool;
+        }
+
+    private:
+        std::vector<OutputSpecs> m_OutputSpecs;
+        LogPoolSptr              m_LogPool;
     }; // class LogSpecs
 
 }; // class LogBase

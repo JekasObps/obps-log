@@ -17,10 +17,7 @@
     *   User must place this macro at the beginning of the main function.
     *   or another scope that will limit log opperation.
     */
-    #define OBPS_LOG_TEARDOWN() []{\
-        obps::LogBase::GetDefaultQueueInstance()->ShutDown();\
-        obps::LogBase::GetLogRegistry()->WipeAllQueues();\
-        obps::LogBase::GetDefaultThreadPoolInstance()->ShutDown(); }()
+    #define OBPS_LOG_TEARDOWN() obps::LogRegistry::ObpsLogShutdown()
     
     /*
     *   Create log in global scope.

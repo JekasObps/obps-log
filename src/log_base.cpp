@@ -3,51 +3,6 @@
 namespace obps
 {
 
-template class LogBase::LogPool; // instantiate LogPool
-
-/*
-*   Singleton Builder For ThreadPool.
-*/
-LogBase::LogPoolSptr LogBase::GetDefaultThreadPoolInstance() 
-{
-    static LogPoolSptr s_Instance;
-    static bool isInit = false;
-    if (!isInit){
-        s_Instance = std::make_shared<LogPool>();
-        isInit = true;
-    }
-    return s_Instance;
-}
-
-/*
-*   Singleton Builder For Queue.
-*/
-LogBase::LogQueueSptr LogBase::GetDefaultQueueInstance() 
-{
-    static LogQueueSptr s_Instance;
-    static bool isInit = false;
-    if (!isInit){
-        s_Instance = std::make_shared<LogQueue_>(default_queue_size);
-        isInit = true;
-    }
-    return s_Instance;
-}
-
-/*
-*   Singleton Builder For LogRegistry.
-*/
-LogBase::LogRegistrySptr LogBase::GetLogRegistry()
-{
-    static LogRegistrySptr s_Instance;
-    static bool isInit = false;
-    if (!isInit){
-        s_Instance = std::make_shared<LogRegistry>();
-        isInit = true;
-    }
-    return s_Instance;
-}
-
-
 void LogBase::default_format(std::ostream& out, const std::time_t ts, const LogLevel level, const std::thread::id tid, const char* text)
 {
     out << get_time_string("%F %T ", ts) << "[" 
