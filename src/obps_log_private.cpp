@@ -5,9 +5,9 @@ namespace obps
 
 using namespace std::chrono_literals;
 
-Log::Log(const LogSpecs& specs) : m_Pool(specs._ThreadPool)
+Log::Log(LogSpecs&& specs) : m_Pool(specs.GetLogPool())
 {
-    for (auto&& o_spec : specs._Outputs)
+    for (auto&& o_spec : specs.GetOutputSpecs())
     {
         AddOutput(o_spec);
     }
@@ -16,7 +16,7 @@ Log::Log(const LogSpecs& specs) : m_Pool(specs._ThreadPool)
 Log::~Log()
 {}
 
-void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
+void Log::AddOutput(const LogSpecs::OutputSpecs& o_spec)
 {
     auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));
 
@@ -27,7 +27,7 @@ void Log::AddOutput(const LogSpecs::OutputSpec & o_spec)
     );
 }
 
-Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
+Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpecs& o_spec)
 {
     const auto& target = o_spec.path_or_stream;
     if (target.isPath())
@@ -42,12 +42,12 @@ Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpec & o_spec)
     }
 }
 
-Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std::ostream> output) 
+Log::LoggerThreadStatus Log::LogThread(LogQueueSptr queue, std::shared_ptr<std::ostream> output) 
 {
     // Constructing and writing to the stream inside syncronizing decorator
     auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){
         MessageData message;
-        LogQueue_::Construct<MessageData>(&message, buffer);
+        LogQueue::Construct<MessageData>(&message, buffer);
 
         message.Format(*output, message.TimeStamp, message.Level, message.Tid, message.Text);
         if (message.Sync)
@@ -56,17 +56,17 @@ Log::LoggerThreadStatus_ Log::LogThread(LogQueueSptr queue, std::shared_ptr<std:
         }
     });
         
-    if (status == LogQueue_::OperationStatus::SHUTDOWN)
+    if (status == LogQueue::OperationStatus::SHUTDOWN)
     {
         output->flush();
-        return LoggerThreadStatus_::FINISHED;
+        return LoggerThreadStatus::FINISHED;
     }
 
     if (output->fail())
     {
-        return LoggerThreadStatus_::ABORTED;
+        return LoggerThreadStatus::ABORTED;
     }
-    return LoggerThreadStatus_::RUNNING;
+    return LoggerThreadStatus::RUNNING;
 }
 
 } // namespace obps

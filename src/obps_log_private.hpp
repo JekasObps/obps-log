@@ -18,29 +18,31 @@ namespace obps
 class Log final : public LogBase 
 {
 public:
-    explicit Log(const LogSpecs& specs);
+    explicit Log(LogSpecs&& specs);
     ~Log();
 
-    void AddOutput(const LogSpecs::OutputSpec & o_spec);
+    void AddOutput(const LogSpecs::OutputSpecs& o_spec);
 
     template <typename ...Args>
     void Write(LogLevel level, bool sync, Args ...args);
 private:
-    using LogThreadFunction = LoggerThreadStatus_ (LogQueueSptr, std::shared_ptr<std::ostream> output);
-    static LogThreadFunction LogThread;
+    using LogThreadFunction = LoggerThreadStatus (LogQueueSptr, std::shared_ptr<std::ostream> output);
+    static LoggerThreadStatus LogThread(LogQueueSptr, std::shared_ptr<std::ostream> output);
+    
+    using OstreamSptr = std::shared_ptr<std::ostream>;
 
     using Output = std::tuple<
         const LogLevel, // severity level of the output target 
         const LogSpecs::OutputModifier, // isolate specific level   
         LogQueueSptr, // output specific queue
-        FormatSignature*, // corresponding formatter 
-        std::shared_ptr<std::ostream>
+        FormatFunctionPtr, // corresponding formatter 
+        OstreamSptr
     >;
 
     template <typename ...Args>
-    MessageData BuildMessage(LogLevel level, FormatSignature* format, bool sync, Args ...args);
+    static MessageData BuildMessage(LogLevel level, FormatFunctionPtr format, bool sync, Args ...args);
 
-    static Output CreateOutput(const LogSpecs::OutputSpec & o_spec);
+    static Output CreateOutput(const LogSpecs::OutputSpecs& o_spec);
 
     std::vector<Output> m_Outputs;
     LogPoolSptr m_Pool;
@@ -59,7 +61,7 @@ void Log::Write(LogLevel level, bool sync, Args ...args)
 }
 
 template <typename ...Args>
-Log::MessageData Log::BuildMessage(LogLevel level, FormatSignature* format, bool sync, Args ...args)
+Log::MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, bool sync, Args ...args)
 {
     std::stringstream serializer;
     std::string text;
