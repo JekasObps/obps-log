@@ -20,29 +20,29 @@ void Log::AddOutput(const LogSpecs::OutputSpecs& o_spec)
 {
     auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));
 
-    m_Pool->RunTask<LogQueueSptr, std::shared_ptr<std::ostream>>(
+    m_Pool->RunTask<LogQueueSptr, OstreamSptr>(
         &Log::LogThread, 
         std::get<2>(output), // LogQueueSptr
-        std::get<4>(output) // std::shared_ptr<std::ostream>
+        std::get<4>(output) // OstreamSptr
     );
 }
 
 Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpecs& o_spec)
 {
-    const auto& target = o_spec.path_or_stream;
+    const auto& target = o_spec.Target;
     if (target.isPath())
     {
-        return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format,
+        return std::make_tuple(o_spec.Level, o_spec.Mod, o_spec.Queue, o_spec.Format,
             OpenFileStream(target.getPath()));
     }
     else
     {
-        return std::make_tuple(o_spec.level, o_spec.mod, o_spec.queue, o_spec.format, 
+        return std::make_tuple(o_spec.Level, o_spec.Mod, o_spec.Queue, o_spec.Format, 
             std::make_shared<std::ostream>(target.getStream()->rdbuf()));
     }
 }
 
-Log::LoggerThreadStatus Log::LogThread(LogQueueSptr queue, std::shared_ptr<std::ostream> output) 
+Log::LoggerThreadStatus Log::LogThread(LogQueueSptr queue, OstreamSptr output) 
 {
     // Constructing and writing to the stream inside syncronizing decorator
     auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){

@@ -133,12 +133,12 @@ public:
 
         struct OutputSpecs
         {
-            LogLevel level;                     
-            PathOrStream path_or_stream;    
+            LogLevel Level;                     
+            PathOrStream Target;    
   
-            OutputModifier mod;
-            LogQueueSptr queue;               
-            FormatFunctionPtr format;
+            OutputModifier Mod;
+            LogQueueSptr Queue;               
+            FormatFunctionPtr Format;
 
             OutputSpecs(LogLevel lvl, 
                 PathOrStream path_or_stream, 
@@ -147,11 +147,11 @@ public:
                 OutputModifier m = OutputModifier::NONE,
                 FormatFunctionPtr fmt = &LogBase::default_format
                 )
-              : level(lvl)
-              , path_or_stream(path_or_stream)
-              , mod(m)
-              , queue(LogRegistry::GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
-              , format(fmt)
+              : Level(lvl)
+              , Target(path_or_stream)
+              , Mod(m)
+              , Queue(LogRegistry::GetLogRegistry()->CreateAndGetQueue(queue_id, queue_size))
+              , Format(fmt)
               {}
         };
 

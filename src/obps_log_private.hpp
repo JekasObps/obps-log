@@ -26,11 +26,10 @@ public:
     template <typename ...Args>
     void Write(LogLevel level, bool sync, Args ...args);
 private:
-    using LogThreadFunction = LoggerThreadStatus (LogQueueSptr, std::shared_ptr<std::ostream> output);
-    static LoggerThreadStatus LogThread(LogQueueSptr, std::shared_ptr<std::ostream> output);
-    
     using OstreamSptr = std::shared_ptr<std::ostream>;
-
+    using LogThreadFunction = LoggerThreadStatus (LogQueueSptr, OstreamSptr);
+    static LoggerThreadStatus LogThread(LogQueueSptr, OstreamSptr output);
+    
     using Output = std::tuple<
         const LogLevel, // severity level of the output target 
         const LogSpecs::OutputModifier, // isolate specific level   

@@ -14,7 +14,7 @@
 namespace obps
 {
 
-class LogRegistry
+class LogRegistry final
 {
 public:
     static constexpr size_t default_queue_size = DEFAULT_QUEUE_SIZE;
