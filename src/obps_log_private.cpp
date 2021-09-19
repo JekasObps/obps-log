@@ -13,9 +13,6 @@ Log::Log(LogSpecs&& specs) : m_Pool(specs.GetLogPool())
     }
 }
 
-Log::~Log()
-{}
-
 void Log::AddOutput(const LogSpecs::OutputSpecs& o_spec)
 {
     auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));

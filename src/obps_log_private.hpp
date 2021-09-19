@@ -19,7 +19,7 @@ class Log final : public LogBase
 {
 public:
     explicit Log(LogSpecs&& specs);
-    ~Log();
+    ~Log() = default;
 
     void AddOutput(const LogSpecs::OutputSpecs& o_spec);
 
