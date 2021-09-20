@@ -23,7 +23,6 @@ namespace obps
 namespace fs = std::filesystem;
 
 enum class LogLevel {OBPS_LOG_LEVELS};
-
 constexpr auto PrettyLevel(const LogLevel level)
 {
     switch (level)
@@ -35,7 +34,21 @@ constexpr auto PrettyLevel(const LogLevel level)
             return "UnknownLevel";
     }
 }
+} // namespace obps
 
+namespace std
+{
+    template<> struct hash<obps::LogLevel>
+    {
+        size_t operator() (const obps::LogLevel& level) const noexcept
+        {
+            return hash<int>{}(static_cast<int>(level));
+        }
+    };
+} // namespace std
+
+namespace obps
+{
 class LogBase
 {
 public:

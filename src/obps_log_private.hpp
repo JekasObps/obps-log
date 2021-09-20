@@ -1,13 +1,7 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <chrono>
-#include <ctime>
-#include <iomanip>
-
-
-#include <atomic>
+#include <unordered_set> // std::unordered_set
+#include <set> // std::set
 
 #include "ObpsLogConfig.hpp"
 #include "log_base.hpp"
@@ -25,6 +19,9 @@ public:
 
     template <typename ...Args>
     void Write(LogLevel level, bool sync, Args ...args);
+
+    void Mute(const std::unordered_set<LogLevel>& mute_levels);
+    void Unmute(const std::set<LogLevel>& unmute_levels);
 private:
     using OstreamSptr = std::shared_ptr<std::ostream>;
     using LogThreadFunction = LoggerThreadStatus (LogQueueSptr, OstreamSptr);
@@ -45,6 +42,7 @@ private:
 
     std::vector<Output> m_Outputs;
     LogPoolSptr m_Pool;
+    std::unordered_set<LogLevel> m_MutedLevels;
 };
 
 template <typename ...Args>
@@ -52,7 +50,8 @@ void Log::Write(LogLevel level, bool sync, Args ...args)
 {
     for(auto && [lvl, mod, que, fmt, out] : m_Outputs)
     {
-        if (lvl >= level) // if level is relevant for current output
+        // A message level is relevant for current output and not muted
+        if (lvl >= level && (! m_MutedLevels.contains(level)))
         {
             que->WriteEmplace<MessageData>(std::move(BuildMessage(level, fmt, sync, args...)));
         }
