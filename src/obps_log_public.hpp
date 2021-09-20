@@ -4,6 +4,12 @@
 
 #ifdef LOG_ON
     #include "obps_log_private.hpp"
+    
+    // exposing LogLevel to a user namespace
+    namespace
+    {
+        using LogLevel = obps::LogLevel;
+    }
 
     #define CONCAT(a, b) a ## b
     #define EXP(line, suf) CONCAT(line, suf)

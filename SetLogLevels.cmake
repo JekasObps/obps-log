@@ -18,6 +18,10 @@ foreach(level ${__LOG_LEVELS})
         "    #define G_${level}(...) get_global_log().Write(obps::LogLevel::${level}, false, __VA_ARGS__)"
         "    #define ${level}_SYNC(...) _SCOPE_LOG_ID.Write(obps::LogLevel::${level}, true, __VA_ARGS__)"
         "    #define G_${level}_SYNC(...) get_global_log().Write(obps::LogLevel::${level}, true, __VA_ARGS__)"
+        "    #define MUTE(...) _SCOPE_LOG_ID.Mute(__VA_ARGS__)"
+        "    #define G_MUTE(...) get_global_log().Mute(__VA_ARGS__)"
+        "    #define UNMUTE(...) _SCOPE_LOG_ID.Unmute(__VA_ARGS__)"
+        "    #define G_UNMUTE(...) get_global_log().Unmute(__VA_ARGS__)"
     )
 
     if (level STREQUAL "DEBUG")
@@ -34,6 +38,10 @@ foreach(level ${__LOG_LEVELS})
         "    #define G_${level}(...) {}"
         "    #define ${level}_SYNC(...) {}"
         "    #define G_${level}_SYNC(...) {}"
+        "    #define MUTE(...) {}"
+        "    #define G_MUTE(...) {}"
+        "    #define UNMUTE(...) {}"
+        "    #define G_UNMUTE(...) {}"
     )
 endforeach()
 

@@ -2,6 +2,8 @@
 
 #include <unordered_set> // std::unordered_set
 #include <set> // std::set
+#include <sstream> // std::stringstream
+#include <string> // std::string
 
 #include "ObpsLogConfig.hpp"
 #include "log_base.hpp"
@@ -22,9 +24,11 @@ public:
 
     void Mute(const std::unordered_set<LogLevel>& mute_levels);
     void Unmute(const std::set<LogLevel>& unmute_levels);
+
 private:
     using OstreamSptr = std::shared_ptr<std::ostream>;
     using LogThreadFunction = LoggerThreadStatus (LogQueueSptr, OstreamSptr);
+    
     static LoggerThreadStatus LogThread(LogQueueSptr, OstreamSptr output);
     
     using Output = std::tuple<
@@ -45,12 +49,15 @@ private:
     std::unordered_set<LogLevel> m_MutedLevels;
 };
 
+// Checks message relevance to log's output targets by comparing levels and checking MutedLevels
+// then construct and write one message per relevant output.
+// Each message constructed from scratch using unique format per output 
+// and written into an output specific queue.
 template <typename ...Args>
 void Log::Write(LogLevel level, bool sync, Args ...args)
 {
     for(auto && [lvl, mod, que, fmt, out] : m_Outputs)
     {
-        // A message level is relevant for current output and not muted
         if (lvl >= level && (! m_MutedLevels.contains(level)))
         {
             que->WriteEmplace<MessageData>(std::move(BuildMessage(level, fmt, sync, args...)));
@@ -58,6 +65,16 @@ void Log::Write(LogLevel level, bool sync, Args ...args)
     }
 }
 
+// Helper that parses user arguments and creates MessageData that will be passed into a output's queue.
+//
+// Params:
+//  LogLevel level:             message level to be displayed in log.
+//  FormatFunctionPtr format:   format function that will be used for final message composing before write.
+//  bool sync:                  flag that indicates whenever need to flush output stream after mesasge writing.
+//  Args ...args:               any args that user provide that will become part of a message.
+//
+// Return: 
+//  MessageData:                struct that will be moved into a output's queue
 template <typename ...Args>
 Log::MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, bool sync, Args ...args)
 {
@@ -84,8 +101,3 @@ Log::MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, boo
 }
 
 } // namespace obps
-
-namespace 
-{
-    using LogLevel = obps::LogLevel;
-}

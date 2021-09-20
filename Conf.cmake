@@ -1,13 +1,14 @@
 # main log on/off lever
 option(ENABLE_LOGGING ON)
 
-# default queue size for each log
+# default queue size in messages for each log
 set(DEFAULT_QUEUE_SIZE 64)
 
-# message size have to be aligend to the word size of the system
-# ! note that minimum 2 bytes of this amount will be used to store msg size data !
-set(MAX_MSG_SIZE 256)
+# for the memory alignment adviced to make it 2^(N) - 2 
+set(MAX_MSG_SIZE 254) # 2^(8) - 2
 
+# amout of memory that queue allocates for messages is: 
+#   QUEUE_SIZE * (sizeof(uint16_t) + MAX_MSG_SIZE) 
 
 # custom user defined levels:
 # ! keep in upper case for the sake of convention

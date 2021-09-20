@@ -15,12 +15,13 @@ Log::Log(LogSpecs&& specs) : m_Pool(specs.GetLogPool())
 // Creates output target(file or stream) and spowns a logThread that will write to this target
 void Log::AddOutput(const LogSpecs::OutputSpecs& o_spec)
 {
+    // important to store and then reference output when Running Task.
     auto&& output = m_Outputs.emplace_back(CreateOutput(o_spec));
 
     m_Pool->RunTask<LogQueueSptr, OstreamSptr>(
         &Log::LogThread, 
-        std::get<2>(output), // LogQueueSptr
-        std::get<4>(output) // OstreamSptr
+        std::get<LogQueueSptr>(output),
+        std::get<OstreamSptr>(output)
     );
 }
 
@@ -83,6 +84,7 @@ Log::LoggerThreadStatus Log::LogThread(LogQueueSptr queue, OstreamSptr output)
     {
         return LoggerThreadStatus::ABORTED;
     }
+
     return LoggerThreadStatus::RUNNING;
 }
 
