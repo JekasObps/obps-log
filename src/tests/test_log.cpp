@@ -1,7 +1,4 @@
-#include <gtest/gtest.h>
-
-#include "obps_log_public.hpp"
-
+#include "gtest/gtest.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -10,7 +7,6 @@ using ::testing::MatchesRegex;
 #include "obps_log_public.hpp"
 
 #include <thread>
-
 #include <sstream>
 #include <iostream>
 
@@ -39,7 +35,9 @@ protected:
     void SetUp() override
     {
         // cleaning up streams before every test case 
+        out.str("");
         out.clear();
+        err.str("");
         err.clear();
     }
 
@@ -64,7 +62,7 @@ TEST_F(TestLog, TestSingleError)
 
     std::this_thread::sleep_for(10ms); // make sure that thread completed work
      
-    message.assign(std::istreambuf_iterator<char>(out), std::istreambuf_iterator<char>());
+    message.assign((std::istreambuf_iterator<char>(out)), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex("^.*ERROR num == 42 is a prohibitted value!\n$"));
 }
@@ -81,7 +79,7 @@ TEST_F(TestLog, TestLevels)
 
     std::this_thread::sleep_for(10ms); // make sure that thread completed work
      
-    message.assign(std::istreambuf_iterator<char>(out), std::istreambuf_iterator<char>());
+    message.assign((std::istreambuf_iterator<char>(out)), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex(".*INFO some info message!\n.*WARN some warning message!\n.*ERROR some error message!\n"));
 }
@@ -105,7 +103,7 @@ TEST_F(TestLog, TestMultipleTargets)
 
     EXPECT_THAT(message, MatchesRegex(".*DEBUG some debug message!\n.*INFO some info message!\n.*WARN some warning message!\n.*ERROR some error message!\n"));
 
-    message.assign(std::istreambuf_iterator<char>(err), std::istreambuf_iterator<char>());
+    message.assign((std::istreambuf_iterator<char>(err)), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex(".*WARN some warning message!\n.*ERROR some error message!\n"));
 }
@@ -126,7 +124,33 @@ TEST_F(TestLog, TestFileTarget)
      
     std::fstream log_file_in(expected_log_path);
     
-    message.assign(std::istreambuf_iterator<char>(log_file_in), std::istreambuf_iterator<char>());
+    message.assign((std::istreambuf_iterator<char>(log_file_in)), std::istreambuf_iterator<char>());
 
     EXPECT_THAT(message, MatchesRegex(".*DEBUG some debug message!\n"));
+}
+
+
+TEST_F(TestLog, TestMuteUnmute)
+{
+    SCOPE_LOG({LogLevel::DEBUG , out});
+
+    MUTE(LogLevel::ERROR, LogLevel::DEBUG);
+
+    ERROR("trying to send an error to a log");
+    DEBUG("trying to send a debug to a log");
+
+    std::this_thread::sleep_for(10ms); // make sure that thread completed work
+
+    message.assign((std::istreambuf_iterator<char>(out)), std::istreambuf_iterator<char>());
+    EXPECT_THAT(message, MatchesRegex("^$")) << "Expected nothing to be printed!";
+
+    UNMUTE(LogLevel::ERROR);
+
+    ERROR("Another try to send an error to a log");
+    DEBUG("Another try to send a debug to a log");
+
+    std::this_thread::sleep_for(10ms); // make sure that thread completed work
+
+    message.assign((std::istreambuf_iterator<char>(out)), std::istreambuf_iterator<char>());
+    EXPECT_THAT(message, MatchesRegex(".*ERROR .*\n")) << "Expected to print only Error message!";
 }
