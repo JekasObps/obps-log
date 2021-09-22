@@ -23,7 +23,7 @@ Each Log instance spawns separate thread and uses separate message queue by defa
 ## example:
 
 ### //// main.c ////
-\#include <thread>
+#include <thread>
 
 ``` c++
 GLOBAL_LOG({LogLevel::ERROR, std::cerr}); // declare and cofigure global log
