@@ -60,7 +60,7 @@ Log::Output Log::CreateOutput(const LogBase::LogSpecs::OutputSpecs& o_spec)
 }
 
 // thread function that runs in separate thread per each instance of a Log class
-Log::LoggerThreadStatus Log::LogThread(LogQueueSptr queue, OstreamSptr output) 
+LoggerThreadStatus Log::LogThread(LogQueueSptr queue, OstreamSptr output) 
 {
     // Constructing and writing to the stream inside syncronizing decorator
     auto && status = queue->ReadTo([&output] (const char * const buffer, size_t size){

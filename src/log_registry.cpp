@@ -2,9 +2,10 @@
 
 namespace obps
 {
-template class LogRegistry::LogPool; // instantiate LogPool
 
-LogRegistry::LogQueueSptr LogRegistry::CreateAndGetQueue(const std::string id, const size_t size)
+template LogPool; // instantiate LogPool
+
+LogQueueSptr LogRegistry::CreateAndGetQueue(const std::string id, const size_t size)
 {
     auto&& [iter, emplaced] = m_Queues.try_emplace(id, std::make_shared<LogQueue>(size));
     if ((!emplaced) && iter->second->GetSize() != size)
@@ -15,6 +16,7 @@ LogRegistry::LogQueueSptr LogRegistry::CreateAndGetQueue(const std::string id, c
     return iter->second;
 } 
 
+// Shutdown all queues politely
 void LogRegistry::WipeAllQueues()
 {
     for(auto && [_, queue] : m_Queues)
@@ -35,6 +37,8 @@ std::string LogRegistry::GenerateQueueUid()
     return std::format("q_{:#}", count.fetch_add(1, std::memory_order_relaxed));
 }
 
+// Should be called at the end of the logger work.
+// Usage of a log API after a call to this function is Undefined 
 void LogRegistry::ObpsLogShutdown()
 {
     GetDefaultQueueInstance()->ShutDown();
@@ -45,7 +49,7 @@ void LogRegistry::ObpsLogShutdown()
 /*
 *   Singleton Builder For ThreadPool.
 */
-LogRegistry::LogPoolSptr LogRegistry::GetDefaultThreadPoolInstance() 
+LogPoolSptr LogRegistry::GetDefaultThreadPoolInstance() 
 {
     static LogPoolSptr s_Instance;
     static bool isInit = false;
@@ -60,7 +64,7 @@ LogRegistry::LogPoolSptr LogRegistry::GetDefaultThreadPoolInstance()
 /*
 *   Singleton Builder For Queue.
 */
-LogRegistry::LogQueueSptr LogRegistry::GetDefaultQueueInstance() 
+LogQueueSptr LogRegistry::GetDefaultQueueInstance() 
 {
     static LogQueueSptr s_Instance;
     static bool isInit = false;

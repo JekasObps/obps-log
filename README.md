@@ -1,63 +1,59 @@
 # ObpsLog
-Simple c++ logging library written for my personal use.
+ObpsLog is a multithreaded c++ logging library. Uses c++20 standard.
 
+## Features
+* User-configured severity levels.
+* Easy on/off at compile time (no Runtime overhead).
+* Global and scope based functionalities
+* Thread-Safe
+* Fast Writes (IO processed in separate thread)
+* Supports files and Standard IO (iostream)
+* Multiple output targets per Log instance. Allows user to split messages into different files by severity.
+* Output message that matches single severity level. (for instance: output only INFO messages into a separate file...)
+* Mute/Unmute some severity levels at Runtime.
+* User custom formatting.
 
-# Design TODO: FIXME:
+## Usage
+An API provides you GLOBAL_LOG and SCOPE_LOG functionality.
+First can be used for simple cases, where the second one is bounded by function scope and allows more precise configuring.
 
-Logging functionality designed to be easily turned on and off at compile time.
-This feature accomplished by using macros defined in obps_log_public.hpp
+Both ways are thread safe.
+Each Log instance spawns separate thread and uses separate message queue by default.
 
-Each log instance contains separate log queue and worker thread.
+## example:
 
-SCOPE_LOG
-    Initializes static storage log in bound scope. 
-    Must be used only inside function scope. Usage in global scope yields undefined behaviour!
-    Scope log finds its application in thread functions. Thread safe.
+### //// main.c ////
+\#include <thread>
 
-ATTACH
-    Initialize additional logger and links it to a scope logger.
-    So, messages writed to a scope log will printed in additional log if they match additional log's level.
-    This feature useful when you want to output different levels to different targets.
-
-    It's convenient for them to share queue and worker, but this haven't implemented yet. 
-
-DEBUG, INFO, WARN, ERROR
-    Default logging macros for each level. You can add custom macros
-
-GLOBAL_LOG 
-    Initializes global log. Must be called in global space.
-    Can be used in multiple threads, but notice that performance will be affected by single queue and worker thread.
-
-
-Log messages in thread   
-
-
-
-New scheme that concludes that thread pool is neccesery:
-
-## //// main.c ////
 ``` c++
+GLOBAL_LOG({LogLevel::ERROR, std::cerr}); // declare and cofigure global log
 
 void thread_foo()
 {
-    SCOPE_LOG() // -> static __scope_log
+    SCOPE_LOG({LogLevel::INFO, std::cout}); // declare and configure scope log 
     
-    // scopelog does not finilize threads on static storage cleanup!
+    INFO("Important message");  // goes to scope log
+
+    int n = 42;
+    DEBUG("n = ", n); // goes to scope log
+
+    G_ERROR("Something terrible happend!"); // goes to global log
+
+
+    MUTE(LogLevel::INFO) // mutes scope log INFO
+    INFO("Ooops");  // muted (is lost for ever)
+    
+    UNMUTE(LogLevel::INFO) // unmutes scope log INFO]
+    INFO("Yey");  // goes to scope log
 }
 
 void main()
 {
+    //  there is a sync version for each call that also flushes an output stream
+    G_ERROR_SYNC("...");
 
-    OBPS_LOG_DESTROY(); //-> finalize threads in global thread pool 
+    std::jthread(thread_foo);
+
+    OBPS_LOG_TEARDOWN(); //-> finalize threads in global thread pool 
 }
-```
-
-### Alternative option:
-``` c++
-void main() FINALIZE_LOG(
-{
-    // your code...
-} 
-[, return statement])
-
 ```

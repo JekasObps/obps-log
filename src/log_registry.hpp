@@ -1,15 +1,8 @@
 #pragma once
 
-#include <atomic>
-#include <unordered_map>
+#include <unordered_map> // std::unordered_map
 
-#include "ObpsLogConfig.hpp"
-#include "ring_queue.hpp"
-
-#include <iostream> // TODO: 
-#include "thread_pool.hpp"
-
-
+#include "log_def.hpp"
 
 namespace obps
 {
@@ -18,20 +11,8 @@ class LogRegistry final
 {
 public:
     static constexpr size_t default_queue_size = DEFAULT_QUEUE_SIZE;
-    enum class LoggerThreadStatus 
-    {
-        RUNNING,    // logger thread hasn't finished yet
-        FINISHED,   // logger thread has finished
-        ABORTED     // logger thread has aborted
-    };
-
-    using LogPool = ThreadPool<LoggerThreadStatus, LoggerThreadStatus::RUNNING, LoggerThreadStatus::FINISHED, LoggerThreadStatus::ABORTED>;
-    using LogPoolSptr = std::shared_ptr<LogPool>;
 
     static LogPoolSptr GetDefaultThreadPoolInstance();
-
-    using LogQueue = RingQueue<MAX_MSG_SIZE>; 
-    using LogQueueSptr = std::shared_ptr<LogQueue>;
     static LogQueueSptr GetDefaultQueueInstance();
     
     using LogRegistrySptr = std::shared_ptr<LogRegistry>;
@@ -56,5 +37,5 @@ public:
 private:
     std::unordered_map<std::string, LogQueueSptr> m_Queues;
 };
-    
+
 } // namespace obps

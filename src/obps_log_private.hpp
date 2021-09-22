@@ -5,7 +5,6 @@
 #include <sstream> // std::stringstream
 #include <string> // std::string
 
-#include "ObpsLogConfig.hpp"
 #include "log_base.hpp"
 
 namespace obps
@@ -76,7 +75,7 @@ void Log::Write(LogLevel level, bool sync, Args ...args)
 // Return: 
 //  MessageData:                struct that will be moved into a output's queue
 template <typename ...Args>
-Log::MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, bool sync, Args ...args)
+MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, bool sync, Args ...args)
 {
     std::stringstream serializer;
     std::string text;
@@ -84,7 +83,7 @@ Log::MessageData Log::BuildMessage(LogLevel level, FormatFunctionPtr format, boo
 	(serializer << ... << args);
     std::getline(serializer, text, '\0');
 
-    assert(text.size() <= text_field_size);
+    assert(text.size() <= MessageData::text_field_size);
 
     //TODO: Check size of the text
 

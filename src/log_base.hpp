@@ -1,40 +1,20 @@
 #pragma once
 
-#include <cstdlib>
 
-#include <variant>
-#include <filesystem>
-#include <vector>
-#include <iostream>
 
-#include "ObpsLogConfig.hpp"
+#include <variant> // std::variant
+#include <filesystem> // std::filesystem::path
+#include <vector> // std::vector
+#include <ostream> // std::ostream
+
+#include "log_def.hpp"
 #include "log_registry.hpp"
-
 
 #if defined(WIN32)
 #    define __localtime(x, y) localtime_s( x, y )
 #elif defined(LINUX)
 #    define __localtime(x, y) localtime_r( y, x )
 #endif
-
-namespace obps
-{
-
-namespace fs = std::filesystem;
-
-enum class LogLevel {OBPS_LOG_LEVELS};
-constexpr auto PrettyLevel(const LogLevel level)
-{
-    switch (level)
-    {
-        OBPS_LOG_PRETTY_LEVELS
-        // generates: 
-        //    case LogLevel::<UserDefinedLevel>: return "<UserDefinedLevel>";
-        default: 
-            return "UnknownLevel";
-    }
-}
-} // namespace obps
 
 namespace std
 {
@@ -49,61 +29,21 @@ namespace std
 
 namespace obps
 {
+namespace fs = std::filesystem;
+
 class LogBase
 {
 public:
-    using LoggerThreadStatus = LogRegistry::LoggerThreadStatus;
-    using LogPool = LogRegistry::LogPool;
-    using LogPoolSptr = LogRegistry::LogPoolSptr;
-    using LogQueue = LogRegistry::LogQueue;
-    using LogQueueSptr = LogRegistry::LogQueueSptr;
-
-
-    static constexpr size_t text_field_size = 256;
-    using FormatFunction = void (std::ostream&, const std::time_t, const LogLevel, const std::thread::id, const char* text);
-    using FormatFunctionPtr = FormatFunction*;
-
+    using FormatFunctionPtr = MessageData::FormatFunctionPtr;
 protected:
-    struct MessageData
-    {
-        std::time_t TimeStamp;
-        LogLevel Level;
-        std::thread::id Tid;
-        FormatFunctionPtr Format;
-        char Text[text_field_size];
-        bool Sync; // used to enable flushes on write
-
-        MessageData() = default;
-        
-        MessageData(const std::time_t ts, const LogLevel lvl, const std::thread::id tid, FormatFunctionPtr const fmt, const char * const src, bool sync = false)
-          : TimeStamp(ts)
-          , Level(lvl)
-          , Tid(tid)
-          , Format(fmt)
-          , Sync(sync)
-        {
-            std::memcpy(Text, src, text_field_size);
-        }
-
-        MessageData(const MessageData& other)
-          : TimeStamp(other.TimeStamp)
-          , Level(other.Level)
-          , Tid(other.Tid)
-          , Format(other.Format)
-          , Sync(other.Sync)
-        {
-            std::memcpy(Text, other.Text, text_field_size);
-        }
-    }; // struct MessageData
-
     LogBase() = default;
     ~LogBase() = default;
 
 public:
     static std::unique_ptr<std::ostream> OpenFileStream(fs::path log_path);
 
-    static FormatFunction default_format;
-    static FormatFunction JSON;
+    static MessageData::FormatFunction default_format;
+    static MessageData::FormatFunction JSON;
 
     LogBase(const LogBase&) = delete;
     LogBase& operator=(const LogBase&) = delete;
