@@ -21,11 +21,10 @@ Both ways are thread safe.
 Each Log instance spawns separate thread and uses separate message queue by default.
 
 ## example:
-
-### //// main.c ////
-\#include <thread>
-
+### main.c
 ``` c++
+#include <thread>
+
 GLOBAL_LOG({LogLevel::ERROR, std::cerr}); // declare and cofigure global log
 
 void thread_foo()
