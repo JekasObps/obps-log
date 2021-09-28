@@ -24,11 +24,13 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/SetLogLevels.cmake)
 configure_file(ObpsLogConfig.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/ObpsLogConfig.hpp)
 
 
+enable_subproject_tests(abstract_factory None) # disables abstract_factory tests
+#        must be called before importing data_structures in order to take effect
 import_repo(data_structures https://github.com/JekasObps/obps-data-structures.git main)
 
 import_gtest()
 
-enable_tests( TEST_ALL )
+enable_tests( TEST_ALL ) # enabling project local tests
 
 enable_testing(on)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src)
