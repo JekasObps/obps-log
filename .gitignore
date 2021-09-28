@@ -5,13 +5,15 @@
 !src
 !src/**
 
+!docs
 
 ### include some file extentions:
 !**.md
 !**.in
 !**.cmake
-
+!**.uxf
 
 ### include specific files (root dir):
 !.gitignore
 !CMakeLists.txt
+!class_diagram.png

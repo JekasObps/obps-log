@@ -1,0 +1,328 @@
+<diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><help_text>Space for diagram notes
+</help_text><element><id>UMLClass</id><coordinates><x>600</x><y>690</y><w>190</w><h>210</h></coordinates><panel_attributes>bg=#E2703A
+fg=#8A0F1A
+style=wordwrap
+&lt;&lt;struct&gt;&gt; 
+*MessageData*
+--
+- TimeStamp: Long
+- Level: LogLevel
+- Tid: Long
+- Format: FormatFunctionPtr
+- Text: String
+- Sync: Bool
+--
+--
+ -- data that is stored in a LogQueue and retrieved by LogThread
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>270</x><y>280</y><w>30</w><h>50</h></coordinates><panel_attributes>lt=&lt;&lt;-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>10;10;10;30</additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>310</y><w>430</w><h>360</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+style=wordwrap
+&lt;&lt;final class&gt;&gt;
+*Log*
+--
+- m_Outputs: List&lt;Output&gt;
+- m_Pool: LogPoolSptr
+--
+Constructor(log_specs: LogSpecs)
+&lt;&lt;default&gt;&gt; Destructor()
+--
++ AddOutput(o_spec: OutputSpecs)
+  &lt;&lt;method template&gt;&gt;
++ Write
+  &lt;&lt;function template&gt;&gt;
+_- BuildMessage_
+
+_- LogThread(queue: LogQueueSptr, output: OstreamSptr): LoggerThreadStatus_
+_- CreateOutput(o_specs: OutputSpecs): Output_
+
+--
+ -- user public interface
+ -- Spaws thread for each output
+ -- Holds output data
+ -- Responsible for constructing MessageData and it's delivery into an output related queue  
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>0</y><w>350</w><h>290</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+style=wordwrap
+&lt;&lt;class&gt;&gt; 
+*LogBase*
+--
+_+ default_format: FormatFunction_
+_+ JSON_format: FormatFunction_
+
+{innerclass
++ LogSpecs
+-
+innerclass}
+
+-
+ -- Empty class that contains useful type definitions, static helper functions and implementation details...
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>1100</x><y>960</y><w>140</w><h>90</h></coordinates><panel_attributes>bg=#FF2200
+fg=#7027A0
+&lt;&lt;enumeration&gt;&gt;
+*LoggerThreadStatus*
+--
+RUNNING
+FINISHED
+ABORTED</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>830</x><y>0</y><w>360</w><h>290</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+&lt;&lt;class&gt;&gt; 
+*LogSpecs*
+--
+- m_Outputs: List&lt;OutputSpecs&gt;
+- m_ThreadPool: LogPoolSptr
+--
++ GetOutputSpecs() : List&lt;OutputSpecs&gt;
++ GetLogPool(): LogPoolSptr
+--
+
+{innerclass
++ PathOrStream
+-
+innerclass}
+
+{innerclass
++ OutputModifier
+-
+innerclass}
+
+{innerclass
++ OutputSpecs
+-
+innerclass}
+ -- user public interface
+ -- provides data that is used for Log instance construction</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>830</x><y>500</y><w>240</w><h>140</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+&lt;&lt;class&gt;&gt;
+*PathOrStream*
+--
+- m_Value: Variant&lt;fs::path, Stream&gt;
+--
+&lt;&lt;const&gt;&gt;
++ isPath(): Bool
++ isStream(): Bool
++ getPath(): Path
++ getStream(): Ostream
+--
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>710</x><y>1180</y><w>500</w><h>310</h></coordinates><panel_attributes>
+template=ThreadRet: typename, running: ThreadRet, finished: ThreadRet, aborted: ThreadRet
+&lt;&lt;class&gt;&gt;
+ThreadPool
+-
+&lt;&lt;method template&gt;&gt;
++ RunTask(callback, Args...)
+
++ ShutDown()
+
+
+style=wordwrap
+bg=#FFFEB7
+fg=#5E454B
+lw=1.2
+
+group=8
+layer=1</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>110</x><y>1180</y><w>530</w><h>310</h></coordinates><panel_attributes>template=msg_size: Long
+&lt;&lt;class&gt;&gt;
+RingQueue
+-
+{innerclass
+&lt;&lt;enumeration&gt;&gt;
+OperationStatus
+-
+SUCCESS
+SHUTDOWN
+FAIL
+innerclass}
+--
+&lt;&lt;method template&gt;&gt;
++ WriteEmplace(T)
+
+&lt;&lt;function template&gt;&gt;
++ Construct(out T, buffer: ByteArray)
+
++ ReadTo(callback(buffer: ByteArray, size: Long)): OperationStatus
+
++ ShutDown()
+group=8
+layer=1
+bg=#FFFEB7
+fg=#5E454B
+lw=1.2</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>1080</x><y>500</y><w>170</w><h>140</h></coordinates><panel_attributes>bg=#FF2200
+fg=#7027A0
+style=wordwrap
+&lt;&lt;enumeration&gt;&gt;
+*OutputModifier*
+--
+NONE
+ISOLATED
+--
+ -- Parameter that forces output to work only for single LogLevel value
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>510</x><y>30</y><w>230</w><h>100</h></coordinates><panel_attributes>bg=#FF2200
+&lt;&lt;enumeration&gt;&gt;
+LogLevel
+--
+ERROR
+-..
+...
+-..
+DEBUG
+group=7
+layer=0</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>830</x><y>310</y><w>290</w><h>150</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+&lt;&lt;struct&gt;&gt; 
+*OutputSpecs*
+--
++ Level: LogLevel
++ Target: PathOrStream
++ Mod: OutputModifier
++ Queue: LogQueueSptr
++ Format: FormatFunctionPtr
+--
+ -- user public interface
+ -- provides data that is used for output initialization
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>1110</x><y>370</y><w>70</w><h>150</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>50;130;50;10;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>920</x><y>450</y><w>30</w><h>70</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;50;10;10</additional_attributes></element><element><id>UMLClass</id><coordinates><x>510</x><y>170</y><w>230</w><h>70</h></coordinates><panel_attributes>&lt;&lt;global function&gt;&gt;
+PrettyLevels
+--
++ call(level: const LogLevel): constexpr char*
+
+
+group=7</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>500</x><y>0</y><w>250</w><h>250</h></coordinates><panel_attributes>bg=#F56FAD
+  &lt;&lt;configurated&gt;&gt;
+--
+lt=.
+group=7
+layer=0
+
+
+
+MAX_MSG_SIZE =1024
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>410</x><y>90</y><w>440</w><h>190</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>10;10;70;10;70;170;420;170</additional_attributes></element><element><id>Relation</id><coordinates><x>1110</x><y>210</y><w>120</w><h>140</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>80;10;100;10;100;120;10;120</additional_attributes></element><element><id>Relation</id><coordinates><x>1180</x><y>170</y><w>70</w><h>350</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>10;10;50;10;50;330</additional_attributes></element><element><id>Relation</id><coordinates><x>1040</x><y>120</y><w>230</w><h>400</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>150;10;210;10;210;350;10;350;10;380</additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>870</y><w>420</w><h>60</h></coordinates><panel_attributes>bg=#005afa
+&lt;&lt;global function&gt;&gt;
+make_log_filename
+--
++ call(prefix_name: String): String
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>950</y><w>420</w><h>60</h></coordinates><panel_attributes>bg=#005afa
+&lt;&lt;global function&gt;&gt;
+get_time_string
+--
++ call(fmt: String, stamp: Long): String
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>1030</y><w>420</w><h>60</h></coordinates><panel_attributes>bg=#005afa
+&lt;&lt;global function&gt;&gt;
+get_timestamp
+--
++ call(): Long
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>780</x><y>40</y><w>70</w><h>330</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m1=
+m2= 1..*
+fg=#7027A0</panel_attributes><additional_attributes>50;10;10;10;10;300;50;300</additional_attributes></element><element><id>Relation</id><coordinates><x>730</x><y>40</y><w>60</w><h>670</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m1=
+m2=1
+fg=#FF2200</panel_attributes><additional_attributes>40;650;40;10;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>730</x><y>80</y><w>120</w><h>300</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m1=
+m2=1
+fg=#FF2200</panel_attributes><additional_attributes>100;280;50;280;50;10;10;10</additional_attributes></element><element><id>UMLClass</id><coordinates><x>590</x><y>490</y><w>110</w><h>70</h></coordinates><panel_attributes>bg=#E2703A
+fg=#8A0F1A
+template=Attrib...
+&lt;&lt;class&gt;&gt;
+tuple
+
+
+
+
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>630</x><y>360</y><w>110</w><h>160</h></coordinates><panel_attributes>fg=#8A0F1A
+lt=&lt;&lt;.
+fontsize=9
+&lt;&lt;bind&gt;&gt; Attrib... 
+ v
+LogLevel,
+OutputModifier,
+LogQueueSptr,
+FormatFunctionPtr,
+OstreamSptr
+</panel_attributes><additional_attributes>10;140;10;10</additional_attributes></element><element><id>UMLClass</id><coordinates><x>570</x><y>340</y><w>130</w><h>30</h></coordinates><panel_attributes>bg=#E2703A
+fg=#8A0F1A
+layer=2
+&lt;&lt;typename&gt;&gt; Output
+
+
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>490</x><y>350</y><w>100</w><h>30</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fg=#8A0F1A</panel_attributes><additional_attributes>10;10;80;10</additional_attributes></element><element><id>Relation</id><coordinates><x>960</x><y>890</y><w>30</w><h>90</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;-
+fg=#8A0F1A</panel_attributes><additional_attributes>10;10;10;70</additional_attributes></element><element><id>UMLClass</id><coordinates><x>70</x><y>680</y><w>330</w><h>80</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+template=Args: typename...
+&lt;&lt;method&gt;&gt;
+Write
+--
++ call(level: LogLevel, sync: Bool, args...: Args)
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>0</x><y>770</y><w>550</w><h>80</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+template=Args: typename...
+&lt;&lt;function&gt;&gt;
+BuildMessage
+--
++ call(level: LogLevel, format: FormatFunctionPtr, sync: Bool, args...: Args): MessageData
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>30</x><y>430</y><w>60</w><h>300</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>40;10;10;10;10;280;40;280</additional_attributes></element><element><id>Relation</id><coordinates><x>10</x><y>470</y><w>80</w><h>330</h></coordinates><panel_attributes>lt=(+)-
+lw=1.5
+fg=#7027A0</panel_attributes><additional_attributes>60;10;10;10;10;310</additional_attributes></element><element><id>UMLClass</id><coordinates><x>890</x><y>960</y><w>160</w><h>70</h></coordinates><panel_attributes>bg=#E2703A
+fg=#8A0F1A
+&lt;&lt;typename&gt;&gt; LogPool
+--
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>910</x><y>1020</y><w>200</w><h>180</h></coordinates><panel_attributes>fg=#8A0F1A
+fontsize=9
+lt=&lt;&lt;.
+&lt;&lt;bind&gt;&gt;
+
+ThreadRet -&gt; LoggerThreadStatus
+running -&gt; LoggerThreadStatus::RUNNING
+finished -&gt; LoggerThreadStatus::FINISHED
+aborted -&gt; LoggerThreadStatus::ABORTED</panel_attributes><additional_attributes>10;160;10;10</additional_attributes></element><element><id>UMLPackage</id><coordinates><x>70</x><y>1130</y><w>1160</w><h>370</h></coordinates><panel_attributes> obps-data-structures
+
+--
+bg=#FFFEB7
+fg=#5E454B
+lw=2
+group=8</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>328</x><y>700</y><w>290</w><h>30</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>272;10;12;10</additional_attributes></element><element><id>Relation</id><coordinates><x>398</x><y>700</y><w>230</w><h>100</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>202;10;10;10;10;80</additional_attributes></element><element><id>UMLClass</id><coordinates><x>820</x><y>660</y><w>420</w><h>240</h></coordinates><panel_attributes>bg=#1DB9C3
+fg=#7027A0
+&lt;&lt;final class&gt;&gt;
+*LogRegistry*
+--
+- m_Queues: Map&lt;String, LogQueueSptr&gt;
+--
++ CreateAndGetQueue(id: String, size: Long): LogQueueSptr
++ WipeAllQueues()
+_+ GetDefaultThreadPoolInstance(): LogPoolSptr_
+_+ GetDefaultQueueInstance(): LogQueueSptr_
+_+ GetLogRegistry(): LogRegistrySptr_
+_+ GenerateQueueId(): String_
+_+ ObpsLogShutdown()_
+--
+ -- Serves as an access point to all singletons used by the Log
+ -- Creates, stores and provides access to a LogQueues used by the Log
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>408</x><y>260</y><w>430</w><h>430</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>410;410;340;410;340;10;12;10</additional_attributes></element><element><id>Relation</id><coordinates><x>1038</x><y>970</y><w>80</w><h>30</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>60;10;12;10</additional_attributes></element><element><id>Relation</id><coordinates><x>800</x><y>890</y><w>60</w><h>90</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;-
+fg=#8A0F1A</panel_attributes><additional_attributes>40;10;40;40;10;40;10;70</additional_attributes></element><element><id>UMLClass</id><coordinates><x>600</x><y>960</y><w>240</w><h>70</h></coordinates><panel_attributes>bg=#E2703A
+fg=#8A0F1A
+&lt;&lt;typename&gt;&gt; LogQueue
+-
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>550</x><y>1020</y><w>200</w><h>180</h></coordinates><panel_attributes>fg=#8A0F1A
+fontsize=9
+lt=&lt;&lt;.
+&lt;&lt;bind&gt;&gt;
+msg_size -&gt; MAX_MSG_SIZE</panel_attributes><additional_attributes>10;160;10;60;180;60;180;10</additional_attributes></element><element><id>Relation</id><coordinates><x>484</x><y>320</y><w>90</w><h>620</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;600;70;600;70;10;20;10</additional_attributes></element><element><id>Relation</id><coordinates><x>568</x><y>830</y><w>60</w><h>190</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>32;10;10;10;10;170;32;170</additional_attributes></element><element><id>Relation</id><coordinates><x>484</x><y>320</y><w>90</w><h>670</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;650;70;650;70;10;20;10</additional_attributes></element><element><id>Relation</id><coordinates><x>484</x><y>320</y><w>90</w><h>750</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;730;70;730;70;10;20;10</additional_attributes></element><element><id>Relation</id><coordinates><x>780</x><y>370</y><w>70</w><h>170</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+m1=
+m2= 1..*
+fg=#7027A0</panel_attributes><additional_attributes>50;10;10;10;10;140;50;140</additional_attributes></element></diagram>

@@ -56,3 +56,7 @@ void main()
     OBPS_LOG_TEARDOWN(); //-> finalize threads in global thread pool 
 }
 ```
+
+## Class Diagram
+
+![class diagram of the ObpsLog](docs/class_diagram.png)
