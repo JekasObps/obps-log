@@ -26,7 +26,7 @@ configure_file(ObpsLogConfig.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/ObpsLogConfi
 
 enable_subproject_tests(abstract_factory None) # disables abstract_factory tests
 #        must be called before importing data_structures in order to take effect
-import_repo(data_structures https://github.com/JekasObps/obps-data-structures.git main)
+import_repo(data_structures https://github.com/JekasObps/obps-data-structures.git async_thread_pool) 
 
 import_gtest()
 
